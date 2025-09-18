@@ -1549,7 +1549,7 @@
                         `;
                     });
                     
-                    if(pageResidents.length < residentsPerPage) {
+                    if(pageResidents.length < residentsPerPage && residentsPerPage !== 1) {
                         for(let j=0; j < (residentsPerPage - pageResidents.length); j++){
                             printContent += `
                             <tr>
@@ -1560,6 +1560,63 @@
                             </tr>
                             `;
                         }
+                    }
+
+                    if (residentsPerPage === 1) {
+                        let meetingDateStr = '';
+                        let correctionDateStr = '';
+
+                        if (eventDateValue) {
+                            const eventDate = new Date(eventDateValue);
+                            const rocYear = eventDate.getFullYear() - 1911;
+                            const month = eventDate.getMonth() + 1;
+                            const day = eventDate.getDate();
+                            meetingDateStr = `${rocYear} 年 ${month} 月 ${day} 日`;
+
+                            const correctionDate = new Date(eventDate);
+                            correctionDate.setDate(eventDate.getDate() - 4);
+                            const corrRocYear = correctionDate.getFullYear() - 1911;
+                            const corrMonth = correctionDate.getMonth() + 1;
+                            const corrDay = correctionDate.getDate();
+                            correctionDateStr = `${corrRocYear} 年 ${corrMonth} 月 ${corrDay} 日`;
+                        }
+
+                        const today = new Date();
+                        const todayRocYear = today.getFullYear() - 1911;
+                        const todayMonth = today.getMonth() + 1;
+                        const todayDay = today.getDate();
+                        const todayDateStr = `中 華 民 國 ${todayRocYear} 年 ${todayMonth} 月 ${todayDay} 日`;
+                        
+                        const proxyText = `
+                            <div style="text-align: left; font-size: 8pt; line-height: 1.5; padding: 5px;">
+                                <h3 style="text-align: center; font-size: 10pt; font-weight: bold; margin: 5px 0;">會議出席委託書</h3>
+                                致 ${communityName} 社區：預定於 ${meetingDateStr}舉行之 ${eventName}，<br>
+                                本人謹委託 ____________________ 先生（女士）代表出席區分所有權人會議，並於區分所有權人會議<br>
+                                中行使各項本人應有之權利與義務，區分所有標的物標示地址如上。<br><br>
+                                區權人 姓名：________________（簽章） 委託人 連絡電話：____________________<br>
+                                受委託人 姓名：________________（簽章） 受委託人 連絡電話：____________________<br>
+                                受委託人 地址： 泉源路 _______ 號 _______ 樓之 _______<br><br>
+                                依公寓大廈理條例規定，受委託人需具備以下四種任一身份，請自行勾選，如有不實責任自負<br>
+                                □ 配偶 □ 有行為能力之直系血親 □ 其他區分所有權人 □ 承租人<br><br>
+                                <strong>注意事項:</strong><br>
+                                1.為便於日後向主管機關核備作業，請區權人及受委託人務必簽名或蓋章。<br>
+                                2.區權人資料如有錯誤或遺失時，請於 ${correctionDateStr} 前至管理服務中心更正及申請補發，管理<br>
+                                服務中心將於會議前一天投進區權人信箱。<br><br>
+                                <div style="text-align: center; width: 100%;">${todayDateStr}</div>
+                            </div>
+                        `;
+
+
+                        printContent += `
+                            <tr>
+                                <td colspan="10" style="text-align: left; padding: 8px; height: 1.5cm;">□已核對出席者身分證件</td>
+                            </tr>
+                            <tr>
+                                <td colspan="10" style="height: auto;">
+                                    ${proxyText}
+                                </td>
+                            </tr>
+                        `;
                     }
 
                     printContent += `
