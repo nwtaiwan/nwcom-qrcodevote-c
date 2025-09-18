@@ -30,21 +30,20 @@
                 size: A4;
                 margin: 1cm;
             }
-
-            body * {
-                visibility: hidden;
-            }
             
             body {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
 
-            #print-area, #print-area * {
-                visibility: visible;
+            /* Hide all direct children of body except for the print area */
+            body > :not(#print-area) {
+                display: none;
             }
 
+            /* Ensure the print area is visible and positioned for printing */
             #print-area {
+                display: block !important;
                 position: absolute;
                 left: 0;
                 top: 0;
