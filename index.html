@@ -31,24 +31,21 @@
                 margin: 1cm;
             }
 
-            body * {
-                visibility: hidden;
-            }
-            
             body {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                background-color: #ffffff !important;
             }
-
-            #print-area, #print-area * {
-                visibility: visible;
+            
+            /* Hide non-printable containers */
+            #app, #public-dashboard-view, #create-event-modal, #resident-modal, #share-modal, #custom-modal, #loader {
+                display: none !important;
             }
-
+            
+            /* Make sure print-area is the only thing visible */
             #print-area {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
+                display: block !important;
+                position: static; /* Use static positioning for print flow */
             }
 
             .print-page {
