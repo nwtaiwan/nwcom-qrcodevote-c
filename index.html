@@ -30,20 +30,21 @@
                 size: A4;
                 margin: 1cm;
             }
+
+            body * {
+                visibility: hidden;
+            }
             
             body {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
 
-            /* Hide all direct children of body except for the print area */
-            body > :not(#print-area) {
-                display: none;
+            #print-area, #print-area * {
+                visibility: visible;
             }
 
-            /* Ensure the print area is visible and positioned for printing */
             #print-area {
-                display: block !important;
                 position: absolute;
                 left: 0;
                 top: 0;
@@ -520,6 +521,25 @@
         </div>
     </div>
 
+    <!-- Custom Modal -->
+    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 id="modal-title" class="text-lg leading-6 font-medium text-gray-900"></h3>
+                <div class="mt-2 px-7 py-3">
+                    <p id="modal-message" class="text-sm text-gray-500"></p>
+                </div>
+                <div id="modal-buttons" class="items-center px-4 py-3 space-x-4">
+                    <!-- Buttons will be injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loader" class="fixed inset-0 bg-gray-900 bg-opacity-60 h-full w-full hidden z-50 flex items-center justify-center">
+        <div class="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-white"></div>
+    </div>
 
     <!-- Print Area -->
     <div id="print-area" class="hidden"></div>
@@ -533,14 +553,14 @@
 
         // --- Firebase Configuration ---
         const firebaseConfig = {
-  apiKey: "AIzaSyC6dc_hjx8jiNbqMmnTSMq80k6GX6tM1GI",
-  authDomain: "nwcom-qrcodevote-01.firebaseapp.com",
-  projectId: "nwcom-qrcodevote-01",
-  storageBucket: "nwcom-qrcodevote-01.firebasestorage.app",
-  messagingSenderId: "675556828941",
-  appId: "1:675556828941:web:a7f07485b9b503a98df244",
-  measurementId: "G-J3VY5B20P3"
-};
+          apiKey: "AIzaSyC6dc_hjx8jiNbqMmnTSMq80k6GX6tM1GI",
+          authDomain: "nwcom-qrcodevote-01.firebaseapp.com",
+          projectId: "nwcom-qrcodevote-01",
+          storageBucket: "nwcom-qrcodevote-01.firebasestorage.app",
+          messagingSenderId: "675556828941",
+          appId: "1:675556828941:web:a7f07485b9b503a98df244",
+          measurementId: "G-J3VY5B20P3"
+        };
         
         // --- App Initialization ---
         let app, auth, db;
@@ -611,8 +631,50 @@
             const addUserForm = document.getElementById('add-user-form');
             const userManagementBtn = document.getElementById('user-management-btn');
             const backToEventsFromUsersBtn = document.getElementById('back-to-events-from-users-btn');
+            const customModal = document.getElementById('custom-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalButtons = document.getElementById('modal-buttons');
+            const loader = document.getElementById('loader');
             
             appContainer.style.display = 'block';
+
+            // --- UI Helpers (Modals and Loader) ---
+            function showLoader() { loader.classList.remove('hidden'); }
+            function hideLoader() { loader.classList.add('hidden'); }
+
+            function showCustomAlert(message, title = '通知') {
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                modalButtons.innerHTML = `<button id="modal-ok-btn" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-1/2 shadow-sm hover:bg-red-700 focus:outline-none">確定</button>`;
+                customModal.classList.remove('hidden');
+
+                document.getElementById('modal-ok-btn').onclick = () => {
+                    customModal.classList.add('hidden');
+                };
+            }
+
+            function showCustomConfirm(message, title = '請確認') {
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                modalButtons.innerHTML = `
+                    <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-red-700 focus:outline-none">確定</button>
+                    <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-300 focus:outline-none">取消</button>
+                `;
+                customModal.classList.remove('hidden');
+
+                return new Promise((resolve) => {
+                    document.getElementById('modal-confirm-btn').onclick = () => {
+                        customModal.classList.add('hidden');
+                        resolve(true);
+                    };
+                    document.getElementById('modal-cancel-btn').onclick = () => {
+                        customModal.classList.add('hidden');
+                        resolve(false);
+                    };
+                });
+            }
+
 
             // --- UI Logic ---
             function setupUI() {
@@ -642,6 +704,7 @@
             // --- Authentication & Role Management ---
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                showLoader();
                 const username = usernameInput.value;
                 const password = passwordInput.value;
                 const emailForFirebase = `${username}@qrsystem.app`;
@@ -666,16 +729,18 @@
                            const userCredential = await createUserWithEmailAndPassword(auth, 'test@qrsystem.app', '123456');
                            const userRef = doc(db, 'users', userCredential.user.uid);
                            await setDoc(userRef, { username: 'test', email: userCredential.user.email, role: 'system_admin' });
-                           alert('測試管理員帳號已建立，請重新登入。');
+                           showCustomAlert('測試管理員帳號已建立，請重新登入。');
 
                         } catch (creationError) {
-                            alert(`測試帳號建立失敗: ${creationError.message}`);
+                            showCustomAlert(`測試帳號建立失敗: ${creationError.message}`);
                         }
                     } else if (error.code === 'auth/invalid-credential') {
-                            alert(`登入失敗: 帳號或密碼錯誤。`);
+                            showCustomAlert(`登入失敗: 帳號或密碼錯誤。`);
                     } else {
-                            alert(`登入失敗: ${error.message}`);
+                            showCustomAlert(`登入失敗: ${error.message}`);
                     }
+                } finally {
+                    hideLoader();
                 }
             });
 
@@ -724,21 +789,21 @@
                             const remoteSessionId = userDoc.data().loginSessionId;
                             if (localSessionId && remoteSessionId && localSessionId !== remoteSessionId) {
                                 unsubscribeSession(); 
-                                alert('您的帳號已在另一台裝置登入，此裝置將自動登出。');
+                                showCustomAlert('您的帳號已在另一台裝置登入，此裝置將自動登出。', '強制登出');
                                 handleLogout();
                             }
                         }
                     });
 
                     document.body.classList.remove('bg-red-600');
-                    document.body.classList.add('bg-white');
+                    document.body.classList.add('bg-gray-50');
                     userDisplay.textContent = `${currentUser.name} (${currentUser.role})`;
                     userDisplayDetails.textContent = `${currentUser.name} (${currentUser.role})`;
                     setupUIVisibilityByRole(currentUser.role);
                     showEventSelectionView();
                 } else {
                     currentUser = { uid: null, name: null, role: null };
-                    document.body.classList.remove('bg-white');
+                    document.body.classList.remove('bg-gray-50');
                     document.body.classList.add('bg-red-600');
                     loginView.classList.remove('hidden');
                     eventSelectionView.classList.add('hidden');
@@ -885,7 +950,7 @@
                     });
                 }, error => {
                     console.error("Error listening to events collection:", error);
-                    alert("無法讀取活動列表，請檢查您的網路連線或 Firebase 安全規則。");
+                    showCustomAlert("無法讀取活動列表，請檢查您的網路連線或 Firebase 安全規則。");
                 });
             }
             
@@ -894,13 +959,16 @@
                 if (deleteButton) {
                     e.stopPropagation();
                     const eventId = deleteButton.dataset.id;
-                    if (confirm('您確定要刪除這個活動嗎？此操作將一併刪除所有住戶資料，且無法復原！')) {
+                    if (await showCustomConfirm('您確定要刪除這個活動嗎？此操作將一併刪除所有住戶資料，且無法復原！')) {
+                        showLoader();
                         try {
                             await deleteEventAndSubcollection(eventId);
-                            alert('活動已成功刪除。');
+                            showCustomAlert('活動已成功刪除。');
                         } catch (error) {
                             console.error("Error deleting event from card:", error);
-                            alert('刪除活動失敗。');
+                            showCustomAlert('刪除活動失敗。');
+                        } finally {
+                            hideLoader();
                         }
                     }
                 }
@@ -924,10 +992,10 @@
                 const eventDate = document.getElementById('new-event-date').value;
 
                 if (!communityName || !eventName || !eventDate) {
-                    alert('請填寫所有欄位！');
+                    showCustomAlert('請填寫所有欄位！');
                     return;
                 }
-
+                showLoader();
                 try {
                     await addDoc(collection(db, ...eventsCollectionPath()), {
                         communityName,
@@ -942,7 +1010,9 @@
                     createEventModal.classList.add('hidden');
                 } catch (error) {
                     console.error("Error creating event:", error);
-                    alert('建立活動失敗。');
+                    showCustomAlert('建立活動失敗。');
+                } finally {
+                    hideLoader();
                 }
             });
 
@@ -1011,6 +1081,7 @@
             settingsForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 if (!selectedEventId) return;
+                showLoader();
                 const eventRef = doc(db, ...eventDocPath(selectedEventId));
                 try {
                     await updateDoc(eventRef, {
@@ -1021,10 +1092,12 @@
                         personRatio: document.getElementById('person-ratio').value,
                         attendanceFee: document.getElementById('attendance-fee').value,
                     });
-                    alert('設定已儲存！');
+                    showCustomAlert('設定已儲存！');
                 } catch (error) {
                     console.error("Error saving settings:", error);
-                    alert('儲存失敗，請檢查網路連線。');
+                    showCustomAlert('儲存失敗，請檢查網路連線。');
+                } finally {
+                    hideLoader();
                 }
             });
             
@@ -1069,6 +1142,7 @@
                 e.preventDefault();
                 if (!selectedEventId) return;
                 
+                showLoader();
                 const qrcodeValue = residentQrcodeValueInput.value;
                 const unit = residentUnitInput.value;
                 const name = residentNameInput.value;
@@ -1090,7 +1164,9 @@
                     closeResidentModal();
                 } catch (error) {
                     console.error("Error saving resident:", error);
-                    alert('儲存住戶失敗！請確認QR Code生成碼是否唯一。');
+                    showCustomAlert('儲存住戶失敗！請確認QR Code生成碼是否唯一。');
+                } finally {
+                    hideLoader();
                 }
             });
 
@@ -1224,7 +1300,7 @@
                 const residentId = target.dataset.id;
                 
                 if (target.classList.contains('delete-btn')) {
-                    if (confirm('確定要刪除這位住戶嗎？')) {
+                    if (await showCustomConfirm('確定要刪除這位住戶嗎？')) {
                         await deleteDoc(doc(db, ...residentDocPath(selectedEventId, residentId)));
                     }
                 }
@@ -1239,11 +1315,11 @@
                     if(resident) {
                         const residentRef = doc(db, ...residentDocPath(selectedEventId, residentId));
                         if (resident.isCheckedIn) {
-                            if (confirm(`確定要取消 ${resident.unit} ${resident.name} 的報到嗎？`)) {
+                            if (await showCustomConfirm(`確定要取消 ${resident.unit} ${resident.name} 的報到嗎？`)) {
                                 await updateDoc(residentRef, { isCheckedIn: false, checkInTimestamp: null, checkInMethod: null, checkInBy: null });
                             }
                         } else {
-                            if (confirm(`確定要為 ${resident.unit} ${resident.name} 手動報到嗎？`)) {
+                            if (await showCustomConfirm(`確定要為 ${resident.unit} ${resident.name} 手動報到嗎？`)) {
                                 await updateDoc(residentRef, { isCheckedIn: true, checkInTimestamp: new Date(), checkInMethod: '手動', checkInBy: currentUser.name });
                             }
                         }
@@ -1358,18 +1434,20 @@
             }
 
             document.getElementById('reset-checkin-btn').addEventListener('click', async () => {
-                if (confirm('您確定要重設此活動所有住戶的報到紀錄嗎？此操作無法復原！')) {
-                    const batch = writeBatch(db);
+                if (await showCustomConfirm('您確定要重設此活動所有住戶的報到紀錄嗎？此操作無法復原！')) {
                     const residentsToCheck = allResidentsForSelectedEvent.filter(r => r.isCheckedIn);
                     if(residentsToCheck.length > 0) {
+                        showLoader();
+                        const batch = writeBatch(db);
                         residentsToCheck.forEach(resident => {
                             const residentRef = doc(db, ...residentDocPath(selectedEventId, resident.id));
                             batch.update(residentRef, { isCheckedIn: false, checkInTimestamp: null, checkInMethod: null, checkInBy: null });
                         });
                         await batch.commit();
-                        alert('所有報到紀錄已成功重設！');
+                        hideLoader();
+                        showCustomAlert('所有報到紀錄已成功重設！');
                     } else {
-                        alert('目前沒有任何報到紀錄可重設。');
+                        showCustomAlert('目前沒有任何報到紀錄可重設。');
                     }
                 }
             });
@@ -1380,19 +1458,22 @@
                 if (eventSnap.exists()) {
                     const eventData = eventSnap.data();
                     if (eventData.creatorId && eventData.creatorId !== currentUser.uid) {
-                        alert('權限不足！只有建立者才能刪除此活動。');
+                        showCustomAlert('權限不足！只有建立者才能刪除此活動。');
                         return;
                     }
                 }
 
-                if (confirm('您確定要刪除整個活動嗎？包含所有住戶資料和報到紀錄，此操作無法復原！')) {
+                if (await showCustomConfirm('您確定要刪除整個活動嗎？包含所有住戶資料和報到紀錄，此操作無法復原！')) {
+                    showLoader();
                     try {
                         await deleteEventAndSubcollection(selectedEventId);
-                        alert('活動已刪除！');
+                        showCustomAlert('活動已刪除！');
                         showEventSelectionView();
                     } catch (error) {
                         console.error("Error deleting event from settings:", error);
-                        alert("刪除活動失敗。");
+                        showCustomAlert("刪除活動失敗。");
+                    } finally {
+                        hideLoader();
                     }
                 }
             });
@@ -1424,7 +1505,7 @@
                 const residentsPerPage = 10;
                 
                 if (allResidentsForSelectedEvent.length === 0) {
-                    alert('沒有住戶資料可列印。');
+                    showCustomAlert('沒有住戶資料可列印。');
                     return;
                 }
                 
@@ -1579,7 +1660,7 @@
             // --- CSV and Mass Delete ---
             document.getElementById('export-csv-btn').addEventListener('click', () => {
                 if (allResidentsForSelectedEvent.length === 0) {
-                    alert('沒有住戶資料可匯出。');
+                    showCustomAlert('沒有住戶資料可匯出。');
                     return;
                 }
                 const headers = ['qrcodeValue', 'unit', 'name', 'address', 'area', 'ownership'];
@@ -1613,23 +1694,24 @@
                     const text = e.target.result;
                     const rows = text.split('\n').filter(row => row.trim() !== '');
                     if (rows.length < 2) {
-                        alert('CSV檔案格式不符或沒有資料。');
+                        showCustomAlert('CSV檔案格式不符或沒有資料。');
                         return;
                     }
 
                     const headers = rows[0].trim().split(',').map(h => h.replace(/"/g, '').trim());
                     const requiredHeaders = ['qrcodeValue', 'unit', 'name', 'ownership'];
                     if (!requiredHeaders.every(h => headers.includes(h))) {
-                        alert(`CSV標頭缺少必要欄位。必須包含: ${requiredHeaders.join(', ')}`);
+                        showCustomAlert(`CSV標頭缺少必要欄位。必須包含: ${requiredHeaders.join(', ')}`);
                         return;
                     }
 
-                    if (!confirm(`即將匯入 ${rows.length - 1} 筆資料，這將會新增至現有列表，確定嗎？`)) return;
-
+                    if (!(await showCustomConfirm(`即將匯入 ${rows.length - 1} 筆資料，這將會新增至現有列表，確定嗎？`))) return;
+                    
+                    showLoader();
                     const batch = writeBatch(db);
                     const importTimestamp = Date.now();
                     for (let i = 1; i < rows.length; i++) {
-                        const values = rows[i].trim().split(',').map(v => v.replace(/"/g, ''));
+                        const values = rows[i].trim().split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/"/g, ''));
                         let residentData = {};
                         headers.forEach((header, index) => {
                             residentData[header] = values[index] || '';
@@ -1651,10 +1733,12 @@
 
                     try {
                         await batch.commit();
-                        alert(`成功匯入 ${rows.length - 1} 筆住戶資料！`);
+                        showCustomAlert(`成功匯入 ${rows.length - 1} 筆住戶資料！`);
                     } catch (error) {
                         console.error("CSV import failed: ", error);
-                        alert("匯入失敗，請檢查CSV檔案格式與內容。");
+                        showCustomAlert("匯入失敗，請檢查CSV檔案格式與內容。");
+                    } finally {
+                        hideLoader();
                     }
                 };
                 reader.readAsText(file, "UTF-8");
@@ -1663,10 +1747,11 @@
 
             document.getElementById('delete-all-residents-btn').addEventListener('click', async () => {
                 if (allResidentsForSelectedEvent.length === 0) {
-                    alert('沒有住戶資料可刪除。');
+                    showCustomAlert('沒有住戶資料可刪除。');
                     return;
                 }
-                if(confirm(`您確定要刪除此活動的全部 ${allResidentsForSelectedEvent.length} 筆住戶資料嗎？此操作無法復原！`)) {
+                if(await showCustomConfirm(`您確定要刪除此活動的全部 ${allResidentsForSelectedEvent.length} 筆住戶資料嗎？此操作無法復原！`)) {
+                    showLoader();
                     const batch = writeBatch(db);
                     allResidentsForSelectedEvent.forEach(resident => {
                         const residentRef = doc(db, ...residentDocPath(selectedEventId, resident.id));
@@ -1674,10 +1759,12 @@
                     });
                     try {
                         await batch.commit();
-                        alert('已成功刪除所有住戶。');
+                        showCustomAlert('已成功刪除所有住戶。');
                     } catch (error) {
                         console.error("Delete all residents failed: ", error);
-                        alert("刪除失敗，請再試一次。");
+                        showCustomAlert("刪除失敗，請再試一次。");
+                    } finally {
+                        hideLoader();
                     }
                 }
             });
@@ -1714,14 +1801,14 @@
                 const newUserRole = document.getElementById('new-user-role').value;
 
                 if(!newUsername || !newPassword){
-                    alert('請填寫帳號和密碼。');
+                    showCustomAlert('請填寫帳號和密碼。');
                     return;
                 }
                 if(newPassword.length < 6){
-                    alert('密碼長度至少需要6個字元。');
+                    showCustomAlert('密碼長度至少需要6個字元。');
                     return;
                 }
-
+                showLoader();
                 try {
                     // We need a temporary auth instance to create the user without signing in the admin out
                     const tempApp = initializeApp(firebaseConfig, 'temp-app-for-user-creation');
@@ -1735,15 +1822,17 @@
                         email: email,
                         role: newUserRole
                     });
-                    alert(`帳號 ${newUsername} 建立成功！`);
+                    showCustomAlert(`帳號 ${newUsername} 建立成功！`);
                     addUserForm.reset();
                 } catch (error) {
                     console.error("Error creating user:", error);
                     if(error.code === 'auth/email-already-in-use'){
-                        alert('錯誤：此帳號名稱已被使用。');
+                        showCustomAlert('錯誤：此帳號名稱已被使用。');
                     } else {
-                        alert(`建立帳號時發生錯誤： ${error.message}`);
+                        showCustomAlert(`建立帳號時發生錯誤： ${error.message}`);
                     }
+                } finally {
+                    hideLoader();
                 }
             });
 
@@ -1776,13 +1865,16 @@
                 const userId = target.dataset.id;
                 
                 if (target.classList.contains('delete-user-btn')) {
-                    if (confirm('您確定要刪除這個帳號嗎？此操作會從資料庫移除，但請注意，您可能需要手動從 Firebase Authentication 主控台刪除使用者以釋放 email。')) {
+                    if (await showCustomConfirm('您確定要刪除這個帳號嗎？此操作會從資料庫移除，但請注意，您可能需要手動從 Firebase Authentication 主控台刪除使用者以釋放 email。')) {
+                        showLoader();
                         try {
                            await deleteDoc(doc(db, ...userDocPath(userId)));
-                           alert('使用者資料已刪除。');
+                           showCustomAlert('使用者資料已刪除。');
                         } catch(error) {
                             console.error("Error deleting user doc:", error);
-                            alert("刪除使用者資料失敗。");
+                            showCustomAlert("刪除使用者資料失敗。");
+                        } finally {
+                            hideLoader();
                         }
                     }
                 }
@@ -1791,16 +1883,19 @@
                     const newRole = prompt("請輸入新角色 (system_admin, senior_manager, junior_manager, staff):");
                     const validRoles = ['system_admin', 'senior_manager', 'junior_manager', 'staff'];
                     if (newRole && validRoles.includes(newRole)) {
+                        showLoader();
                         try {
                             const userRef = doc(db, ...userDocPath(userId));
                             await updateDoc(userRef, { role: newRole });
-                            alert('角色已更新！');
+                            showCustomAlert('角色已更新！');
                         } catch(error) {
                             console.error("Error updating role:", error);
-                            alert('更新角色失敗。');
+                            showCustomAlert('更新角色失敗。');
+                        } finally {
+                            hideLoader();
                         }
                     } else if (newRole) {
-                        alert('無效的角色名稱！');
+                        showCustomAlert('無效的角色名稱！');
                     }
                 }
             });
