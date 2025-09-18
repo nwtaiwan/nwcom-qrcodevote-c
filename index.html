@@ -3,467 +3,2062 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>西北社區財務系統</title>
+    <title>西北社區QR Code報到系統</title>
+    <link rel="icon" type="image/png" href="https://static.wixstatic.com/media/6148f9_4ebee1eb9c114124805fddcbbc8c6e28~mv2.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        /* 自訂樣式，用於設定面板的顯示和隱藏動畫 */
-        .modal {
-            display: none;
-            transition: opacity 0.3s ease-in-out;
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
+        .tab-button.active {
+            border-color: #dc2626; /* red-600 */
+            color: #dc2626; /* red-600 */
+            background-color: #fee2e2; /* red-100 */
         }
-        .modal.active {
-            display: flex;
+        #reader {
+            border: 2px dashed #cbd5e1;
+            border-radius: 0.5rem;
+            overflow: hidden;
         }
-        .modal-content {
-            transform: scale(0.9);
-            transition: transform 0.3s ease-in-out;
+        .checked-in-row {
+            background-color: #f0fdf4; /* green-50 */
         }
-        .modal.active .modal-content {
-            transform: scale(1);
+        
+        @media print {
+            @page {
+                size: A4;
+                margin: 1cm;
+            }
+
+            body * {
+                visibility: hidden;
+            }
+            
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+
+            .print-page {
+                page-break-after: always;
+                position: relative;
+                min-height: 25cm; 
+            }
+
+            .print-page:last-child {
+                page-break-after: avoid;
+            }
+
+            .print-header {
+                margin-bottom: 1rem;
+            }
+
+            .print-header h1 {
+                font-size: 18pt;
+                font-weight: bold;
+                text-align: center;
+            }
+
+            .print-header h2 {
+                font-size: 16pt;
+                font-weight: bold;
+                text-align: center;
+            }
+
+            .print-header p {
+                font-size: 10pt; /* Reduced font size for date */
+                text-align: right;
+            }
+
+            .print-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 9pt; 
+                table-layout: fixed; /* Fix table layout */
+            }
+
+            .print-table th, .print-table td {
+                border: 1px solid black;
+                padding: 4px;
+                text-align: center;
+                vertical-align: middle;
+                word-wrap: break-word; /* Allow text to wrap */
+            }
+            
+            .print-table td:nth-child(5) { /* Address column */
+                text-align: left;
+            }
+
+            .print-table th {
+                background-color: #EAEAEA !important;
+            }
+            
+            .print-table td {
+                height: 2.2cm; /* Fixed row height */
+            }
         }
-        /* 美化捲軸 */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
+
     </style>
 </head>
-<body class="bg-red-600 flex items-center justify-center h-screen font-sans">
+<body class="bg-red-600 text-gray-800 transition-colors duration-300">
 
-    <!-- 主登入畫面 -->
-    <div class="w-full max-w-md p-4 space-y-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl text-center">
-        <img src="https://static.wixstatic.com/media/6148f9_56377cef73c1498f95a2c3057b89f2ed~mv2.png" alt="社區Logo" class="w-[120px] h-[60px] mx-auto mb-2">
-        
-        <div class="text-center">
-             <span id="communityNameDisplay" class="block text-[20px] font-bold text-red-600">西北社區</span>
-             <span class="block text-[20px] text-gray-800">財務系統</span>
-        </div>
-        
-        <!-- 登入表單 -->
-        <form id="loginForm" class="space-y-4 text-left">
-            <div>
-                 <div class="flex justify-between items-center mb-1">
-                    <label for="username" class="text-base font-medium text-gray-700">帳號</label>
-                    <div class="flex items-center text-base">
-                        <input id="rememberMe" name="rememberMe" type="checkbox" class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
-                        <label for="rememberMe" class="ml-2 text-gray-700">記住帳號</label>
-                    </div>
-                </div>
-                <input id="username" name="username" type="text" required class="text-base block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="請輸入您的帳號">
-            </div>
-            <div>
-                <label for="password" class="text-base font-medium text-gray-700">密碼</label>
-                <div class="relative mt-1">
-                    <input id="password" name="password" type="password" required class="text-base block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 pr-10" placeholder="請輸入您的密碼">
-                    <button type="button" id="togglePasswordVisibility" class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700 cursor-pointer">
-                        <svg id="eyeIcon" class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                        </svg>
-                        <svg id="eyeOffIcon" class="h-5 w-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064 7 9.542 7 .847 0 1.673.124 2.458.352M4.935 4.935l14.13 14.13M10.5 10.5a2.5 2.5 0 003.536 3.536"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <button type="submit" class="w-full flex justify-center py-2 px-3 border border-transparent rounded-lg shadow-lg text-base font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out">
-                登入
-            </button>
-        </form>
-        <div id="loginMessage" class="text-center text-red-500 font-medium h-4"></div>
+    <!-- Public View -->
+    <div id="public-dashboard-view" class="hidden max-w-7xl mx-auto p-4 md:p-6">
+         <header class="text-center mb-6 pb-4 border-b">
+             <h1 id="public-community-name-display" class="text-3xl font-bold text-red-700">載入中...</h1>
+             <p id="public-event-title-display" class="text-2xl text-gray-800 mt-1"></p>
+         </header>
+         <div id="public-dashboard-content" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <!-- Public dashboard cards will be injected here by JS -->
+         </div>
     </div>
 
-    <!-- 左下角設定按鈕 -->
-    <button id="settingsButton" class="fixed bottom-0 left-0 w-[10px] h-[10px] bg-transparent cursor-pointer" title="開啟設定"></button>
-    
-    <!-- 設定密碼驗證 Modal -->
-    <div id="settingsPasswordModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4">
-        <div class="modal-content bg-white rounded-xl shadow-xl w-full max-w-sm">
-            <div class="p-4 border-b">
-                <h2 class="text-xl font-bold text-gray-800">管理員驗證</h2>
+    <!-- App Container -->
+    <div id="app" class="max-w-7xl mx-auto p-4 md:p-6">
+
+        <!-- Login View -->
+        <div id="login-view" class="max-w-md mx-auto mt-20 bg-white p-8 rounded-xl shadow-lg">
+            <div class="flex justify-center mb-4">
+                <img src="https://static.wixstatic.com/media/6148f9_4ebee1eb9c114124805fddcbbc8c6e28~mv2.png" alt="公司標誌" style="width: 80px; height: 80px;">
             </div>
-            <div class="p-4">
-                <form id="settingsPasswordForm">
-                    <label for="settingsPassword" class="text-sm font-medium text-gray-700">請輸入管理密碼</label>
-                    <input type="password" id="settingsPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    <div id="passwordErrorMessage" class="text-red-500 text-sm h-4 mt-1"></div>
-                    <div class="mt-4 flex justify-end space-x-2">
-                         <button type="button" id="closePasswordModalButton" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition">取消</button>
-                        <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition">確認</button>
+            <h1 class="text-lg sm:text-xl font-bold text-center text-gray-900">西北社區QR Code報到系統</h1>
+            <form id="login-form" class="mt-8">
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-1">
+                         <label for="username" class="block text-sm font-medium text-gray-700">帳號</label>
+                         <div class="flex items-center">
+                            <input id="remember-me" name="remember-me" type="checkbox" class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
+                            <label for="remember-me" class="ml-2 block text-sm text-gray-900">記住我</label>
+                         </div>
                     </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- 設定面板 (Modal) -->
-    <div id="settingsModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4">
-        <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div class="p-6 border-b border-gray-200 flex justify-between items-center">
-                <h2 class="text-2xl font-bold text-gray-800">基本設定</h2>
-                <button id="closeModalButton" class="text-gray-400 hover:text-gray-600 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            
-            <div class="px-6 pb-6 pt-5 flex-grow overflow-y-auto space-y-4">
-                <!-- 訊息提示 -->
-                <div id="settingsMessage" class="mb-2 text-center text-green-600 font-medium h-5"></div>
-
-                 <!-- 社區名稱設定 -->
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-2">社區名稱設定</h3>
-                    <div class="flex flex-wrap gap-4 items-end">
-                        <div class="flex-grow">
-                            <label for="communityNameInput" class="text-sm font-medium text-gray-700">新名稱</label>
-                            <input type="text" id="communityNameInput" placeholder="例如：西北社區" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                        </div>
-                        <div class="flex-shrink-0">
-                            <button id="saveCommunityNameButton" class="w-full sm:w-auto flex-shrink-0 px-5 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">儲存名稱</button>
-                        </div>
+                    <input type="text" id="username" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="請輸入您的帳號">
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">密碼</label>
+                    <div class="relative">
+                        <input type="password" id="password" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 pr-10" placeholder="********">
+                        <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"></button>
                     </div>
                 </div>
+                <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out">登入</button>
+            </form>
+        </div>
+        
+        <!-- Event Selection View -->
+        <div id="event-selection-view" class="hidden">
+            <header class="flex flex-wrap justify-between items-center mb-6 pb-4 border-b">
+                <h1 class="text-3xl font-bold text-gray-800">會議活動列表</h1>
+                <div class="flex items-center space-x-4 mt-4 sm:mt-0">
+                    <button id="create-event-btn" class="bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700">新增會議活動</button>
+                    <button id="user-management-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600">帳號管理</button>
+                    <span id="user-display" class="text-sm text-gray-500"></span>
+                    <button id="logout-btn-events" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 text-sm font-semibold">登出</button>
+                </div>
+            </header>
+            <div id="events-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Event cards will be dynamically inserted here -->
+            </div>
+        </div>
 
-                <!-- 帳號管理 -->
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-2">帳號管理</h3>
-                    
-                    <!-- 新增/編輯帳號表單 -->
-                    <form id="accountForm" class="mb-4 flex flex-wrap gap-4 items-end">
-                        <input type="hidden" id="editUserId">
-                        <div class="flex-grow" style="flex-basis: 12rem;">
-                            <label for="accountUsername" class="text-sm font-medium text-gray-700">帳號</label>
-                            <input type="text" id="accountUsername" placeholder="新帳號" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+
+        <!-- Event Details View (was Main Content View) -->
+        <div id="event-details-view" class="hidden">
+            <div class="flex items-center mb-4">
+                 <button id="back-to-events-btn" class="text-red-600 hover:text-red-800 font-semibold flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                      返回活動列表
+                 </button>
+            </div>
+            <header class="flex flex-wrap justify-between items-center mb-6 pb-4 border-b">
+                <div>
+                    <h1 id="community-name-display" class="text-2xl font-bold text-red-700">載入中...</h1>
+                    <p id="event-title-display" class="text-2xl text-gray-800 mt-1">QR Code 報到系統</p>
+                </div>
+                <div class="flex items-center space-x-4 mt-4 sm:mt-0">
+                    <span id="user-display-details" class="text-sm text-gray-500"></span>
+                    <button id="logout-btn-details" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm font-semibold">登出</button>
+                </div>
+            </header>
+
+            <!-- Tabs -->
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="flex space-x-4" aria-label="Tabs">
+                    <button id="tab-dashboard" class="tab-button active shrink-0 px-4 py-2 text-sm font-medium text-gray-500 rounded-t-lg border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">儀表板</button>
+                    <button id="tab-residents" class="tab-button shrink-0 px-4 py-2 text-sm font-medium text-gray-500 rounded-t-lg border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">住戶管理</button>
+                    <button id="tab-scanner" class="tab-button shrink-0 px-4 py-2 text-sm font-medium text-gray-500 rounded-t-lg border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">掃碼報到</button>
+                    <button id="tab-settings" class="tab-button shrink-0 px-4 py-2 text-sm font-medium text-gray-500 rounded-t-lg border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">系統設定</button>
+                </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="tab-content">
+                <!-- Dashboard -->
+                <div id="dashboard-content">
+                    <div class="flex justify-end mb-4">
+                        <button id="share-dashboard-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-600 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
+                            分享儀表板
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                             <div>
+                                 <p class="text-sm font-medium text-gray-500">總住戶數</p>
+                                 <p id="total-residents" class="text-3xl font-bold text-red-600">0</p>
+                             </div>
                         </div>
-                        <div class="flex-grow" style="flex-basis: 12rem;">
-                            <label for="accountPassword" class="text-sm font-medium text-gray-700">密碼</label>
-                            <input type="text" id="accountPassword" placeholder="新密碼" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                        </div>
-                        <div class="flex-grow" style="flex-basis: 12rem;">
-                            <label for="accountRedirectUrl" class="text-sm font-medium text-gray-700">代碼</label>
-                            <div class="flex items-center mt-1">
-                                <input type="text" id="accountRedirectUrl" placeholder="請輸入代碼" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">已報到人數</p>
+                                <p id="checked-in-count" class="text-3xl font-bold text-green-600">0</p>
                             </div>
                         </div>
-                        <div class="flex items-center space-x-2 w-full sm:w-auto">
-                            <button type="submit" id="accountFormSubmitButton" class="w-full sm:w-auto flex-shrink-0 px-5 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition">新增帳號</button>
-                            <button type="button" id="cancelEditButton" class="hidden w-full sm:w-auto flex-shrink-0 px-5 py-2 bg-gray-400 text-white rounded-md hover:bg-gray-500 transition">取消編輯</button>
+                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">人數報到率 <span id="person-ratio-target" class="text-xs"></span></p>
+                                <p id="check-in-rate" class="text-3xl font-bold text-orange-600">0%</p>
+                            </div>
+                            <span id="quorum-person-message" class="hidden text-green-600 font-bold text-lg">已達法定開會人數</span>
                         </div>
-                    </form>
-                    
-                    <!-- 帳號列表 -->
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white border border-gray-200 rounded-lg">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">帳號</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">密碼</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">代碼</th>
-                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="userList" class="divide-y divide-gray-200">
-                                <!-- 使用 JavaScript 動態填入 -->
-                            </tbody>
-                        </table>
+                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">區分權報到率 <span id="ownership-ratio-target" class="text-xs"></span></p>
+                                <p id="ownership-check-in-rate" class="text-3xl font-bold text-blue-600">0%</p>
+                            </div>
+                            <span id="quorum-message" class="hidden text-green-600 font-bold text-lg">已達法定開會區分權比例</span>
+                        </div>
+                        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-md">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold">最近報到紀錄</h3>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">戶號</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">報到日期時間</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">報到方式</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作員</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recent-check-ins-list" class="bg-white divide-y divide-gray-200">
+                                        <tr><td colspan="4" class="p-4 text-center text-gray-500">尚無報到紀錄</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Resident Management -->
+                <div id="residents-content" class="hidden">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                            <h3 class="text-lg font-semibold">住戶列表</h3>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button id="add-resident-modal-btn" class="bg-orange-500 text-white px-3 py-2 rounded-md hover:bg-orange-600 text-sm font-semibold">新增住戶</button>
+                                <button id="export-csv-btn" class="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 text-sm font-semibold">匯出CSV</button>
+                                <input type="file" id="import-csv-input" class="hidden" accept=".csv">
+                                <button id="import-csv-btn" class="bg-green-500 text-white px-3 py-2 rounded-md hover:bg-green-600 text-sm font-semibold">匯入CSV</button>
+                                <button id="delete-all-residents-btn" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 text-sm font-semibold">全部刪除</button>
+                                <button id="print-roster-btn" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 text-sm font-semibold">列印出席名冊</button>
+                            </div>
+                        </div>
+                        <div class="overflow-auto max-h-[70vh]">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QR Code碼</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">戶號</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">住址</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">坪數</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">區分權(%)</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QR Code</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="residents-list" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scanner -->
+                <div id="scanner-content" class="hidden">
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div class="bg-white p-6 rounded-xl shadow-md">
+                              <h3 class="text-lg font-semibold mb-4">攝影機掃描</h3>
+                              <div class="flex gap-4 mb-4">
+                                  <button id="start-scan-btn" class="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 disabled:bg-gray-400">開始掃碼</button>
+                                  <button id="stop-scan-btn" class="w-full bg-red-500 text-white font-bold py-2 px-4 rounded-md hover:bg-red-600 disabled:bg-gray-400" disabled>停止掃碼</button>
+                              </div>
+                              <div id="reader" class="w-full aspect-square bg-gray-100 flex items-center justify-center">
+                                  <p id="reader-placeholder" class="text-gray-500">請點擊 "開始掃碼"</p>
+                              </div>
+                              <div id="scanner-status" class="mt-4 text-center font-semibold p-3 rounded-md">&nbsp;</div>
+                          </div>
+                          <div class="bg-white p-6 rounded-xl shadow-md">
+                              <h3 class="text-lg font-semibold mb-4">掃碼槍輸入</h3>
+                              <form id="scan-gun-form" class="mb-4">
+                                  <label for="scan-gun-input" class="sr-only">QR Code</label>
+                                  <input type="text" id="scan-gun-input" placeholder="將游標點擊此處後開始掃碼..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                              </form>
+                              <h3 class="text-lg font-semibold mb-4">報到狀態</h3>
+                              <div class="text-center mb-4">
+                                  <span id="scanner-checked-in" class="text-4xl font-bold text-green-600">0</span>
+                                  <span class="text-gray-500">/</span>
+                                  <span id="scanner-total" class="text-2xl text-gray-500">0</span>
+                              </div>
+                              <h4 class="font-semibold mb-2">最近報到：</h4>
+                              <ul id="scanner-recent-list" class="space-y-2 max-h-80 overflow-y-auto">
+                                  <li class="text-gray-500 text-center">掃碼紀錄將顯示於此</li>
+                              </ul>
+                          </div>
+                     </div>
+                </div>
+
+                <!-- Settings -->
+                <div id="settings-content" class="hidden">
+                    <div class="max-w-xl mx-auto bg-white p-8 rounded-xl shadow-md">
+                         <h3 class="text-xl font-bold mb-6">活動設定</h3>
+                        <form id="settings-form">
+                            <div class="mb-4">
+                                <label for="community-name" class="block text-sm font-medium text-gray-700">社區名稱</label>
+                                <input type="text" id="community-name" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                            </div>
+                            <div class="mb-4">
+                                <label for="event-name" class="block text-sm font-medium text-gray-700">會議/活動名稱</label>
+                                <input type="text" id="event-name" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                            </div>
+                             <div class="mb-4">
+                                 <label for="event-date" class="block text-sm font-medium text-gray-700">活動日期與時間</label>
+                                 <input type="datetime-local" id="event-date" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                             </div>
+                             <div class="mb-6">
+                                <label for="person-ratio" class="block text-sm font-medium text-gray-700">法定開會人數比例 (%)</label>
+                                <input type="number" id="person-ratio" step="1" min="0" max="100" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：50">
+                            </div>
+                            <div class="mb-6">
+                                <label for="ownership-ratio" class="block text-sm font-medium text-gray-700">法定開會區分權比例 (%)</label>
+                                <input type="number" id="ownership-ratio" step="0.01" min="0" max="100" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：66.67">
+                            </div>
+                            <div class="mb-6">
+                                <label for="attendance-fee" class="block text-sm font-medium text-gray-700">出席費金額</label>
+                                <input type="number" id="attendance-fee" min="0" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：500">
+                            </div>
+                             <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700">儲存設定</button>
+                        </form>
+                        <div class="mt-8 border-t pt-6">
+                            <h4 class="text-lg font-semibold text-red-600 mb-2">危險區域</h4>
+                            <p class="text-sm text-gray-600 mb-4">此操作將清除此活動所有住戶的報到紀錄，且無法復原。</p>
+                            <button id="reset-checkin-btn" class="w-full bg-yellow-500 text-white font-bold py-2 px-4 rounded-md hover:bg-yellow-600">重設此活動的報到紀錄</button>
+                            <button id="delete-event-btn" class="mt-4 w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700">刪除整個活動</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Management View -->
+        <div id="user-management-view" class="hidden">
+             <div class="flex items-center mb-4">
+                 <button id="back-to-events-from-users-btn" class="text-red-600 hover:text-red-800 font-semibold flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                      返回活動列表
+                 </button>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                    <h3 class="text-lg font-semibold">帳號管理</h3>
+                </div>
+                <!-- Add User Form -->
+                <form id="add-user-form" class="mb-6 p-4 border rounded-lg bg-gray-50">
+                    <h4 class="text-md font-semibold mb-2">新增帳號</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="new-username" class="block text-sm font-medium text-gray-700">帳號</label>
+                            <input type="text" id="new-username" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                        </div>
+                        <div>
+                            <label for="new-password" class="block text-sm font-medium text-gray-700">密碼</label>
+                            <input type="password" id="new-password" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                        </div>
+                        <div>
+                            <label for="new-user-role" class="block text-sm font-medium text-gray-700">角色</label>
+                            <select id="new-user-role" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                                <option value="staff">工作人員</option>
+                                <option value="junior_manager">初階主管</option>
+                                <option value="senior_manager">高階主管</option>
+                                <option value="system_admin">系統管理者</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700">建立帳號</button>
+                    </div>
+                </form>
+
+                <!-- Users List -->
+                <div class="overflow-auto max-h-[60vh]">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50 sticky top-0">
+                            <tr>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">帳號</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">角色</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-list" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // DOM 元素
-            const loginForm = document.getElementById('loginForm');
-            const loginMessage = document.getElementById('loginMessage');
+    <!-- Create Event Modal -->
+    <div id="create-event-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">新增會議活動</h3>
+                <div class="mt-2 px-7 py-3">
+                    <form id="create-event-form">
+                        <div class="mb-4 text-left">
+                            <label for="new-community-name" class="block text-sm font-medium text-gray-700">社區名稱</label>
+                            <input type="text" id="new-community-name" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：西北社區">
+                        </div>
+                        <div class="mb-4 text-left">
+                            <label for="new-event-name" class="block text-sm font-medium text-gray-700">會議/活動名稱</label>
+                            <input type="text" id="new-event-name" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：113年度區分所有權人會議">
+                        </div>
+                         <div class="mb-4 text-left">
+                             <label for="new-event-date" class="block text-sm font-medium text-gray-700">活動日期與時間</label>
+                             <input type="datetime-local" id="new-event-date" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                         </div>
+                    </form>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="save-event-btn" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                        建立活動
+                    </button>
+                     <button id="cancel-event-btn" class="mt-2 px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-300 focus:outline-none">
+                         取消
+                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Resident Modal -->
+    <div id="resident-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-10 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <h3 id="resident-modal-title" class="text-lg leading-6 font-medium text-gray-900 mb-4"></h3>
+            <form id="add-resident-form">
+                <input type="hidden" id="resident-id">
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="mb-4">
+                        <label for="resident-qrcode-value" class="block text-sm font-medium text-gray-700">QR Code 生成碼</label>
+                        <input type="text" id="resident-qrcode-value" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="用於掃描的唯一碼">
+                    </div>
+                    <div>
+                        <label for="resident-unit" class="block text-sm font-medium text-gray-700">戶號</label>
+                        <input type="text" id="resident-unit" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如: A-1201">
+                    </div>
+                    <div>
+                        <label for="resident-name" class="block text-sm font-medium text-gray-700">姓名</label>
+                        <input type="text" id="resident-name" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                    </div>
+                    <div>
+                        <label for="resident-address" class="block text-sm font-medium text-gray-700">住址</label>
+                        <input type="text" id="resident-address" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                    </div>
+                    <div>
+                        <label for="resident-area" class="block text-sm font-medium text-gray-700">坪數</label>
+                        <input type="number" id="resident-area" step="0.01" min="0" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                    </div>
+                    <div>
+                        <label for="resident-ownership" class="block text-sm font-medium text-gray-700">區分權比例 (%)</label>
+                        <input type="number" id="resident-ownership" step="0.0001" min="0" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如: 0.8521">
+                    </div>
+                </div>
+                 <div class="items-center px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                      <button type="submit" id="save-resident-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">儲存</button>
+                      <button type="button" id="cancel-resident-modal-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm">取消</button>
+                 </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Share Modal -->
+    <div id="share-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                 <h3 class="text-lg leading-6 font-medium text-gray-900">分享即時儀表板</h3>
+                 <button id="close-share-modal-btn" class="text-gray-400 hover:text-gray-600">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                 </button>
+            </div>
+            <div class="mt-2 text-center">
+                <p class="text-sm text-gray-500 mb-4">掃描 QR code 或點擊下方連結以查看公開的即時報表。</p>
+                <a id="share-link" href="#" target="_blank">
+                    <div id="share-qr-code" class="flex justify-center p-4 border rounded-md"></div>
+                </a>
+                <p id="share-url-display" class="mt-4 text-xs text-gray-500 break-all"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal -->
+    <div id="custom-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="text-center">
+                <h3 id="modal-title" class="text-lg leading-6 font-medium text-gray-900"></h3>
+                <div id="modal-content-wrapper" class="mt-2 px-7 py-3">
+                    <p id="modal-message" class="text-sm text-gray-500"></p>
+                    <div id="modal-html-content"></div>
+                </div>
+                <div id="modal-actions" class="items-center px-4 py-3">
+                    <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">確定</button>
+                    <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-300 focus:outline-none mt-2 sm:mt-0 ml-2">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loader -->
+    <div id="loader" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex justify-center items-center hidden z-[60]">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white"></div>
+    </div>
+
+    <!-- Print Area -->
+    <div id="print-area" class="hidden"></div>
+
+
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, where, onSnapshot, deleteDoc, updateDoc, writeBatch, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Configuration ---
+        // WARNING: It's best practice to use environment variables for Firebase config keys.
+        // Hardcoding them here is not recommended for production environments.
+        const firebaseConfig = {
+  apiKey: "AIzaSyC6dc_hjx8jiNbqMmnTSMq80k6GX6tM1GI",
+  authDomain: "nwcom-qrcodevote-01.firebaseapp.com",
+  projectId: "nwcom-qrcodevote-01",
+  storageBucket: "nwcom-qrcodevote-01.firebasestorage.app",
+  messagingSenderId: "675556828941",
+  appId: "1:675556828941:web:a7f07485b9b503a98df244",
+  measurementId: "G-J3VY5B20P3"
+};
+        
+        // --- App Initialization ---
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.error("Firebase initialization failed.", e);
+            document.body.innerHTML = `<div class="p-8 text-center bg-red-100 text-red-800"><h1 class="font-bold text-2xl">Firebase 設定錯誤</h1><p class="mt-2">請在程式碼中填入您自己的 Firebase 設定後再試一次。</p></div>`;
+        }
+        
+        // --- State ---
+        let currentUser = { uid: null, name: null, role: null };
+        let selectedEventId = null;
+        let allResidentsForSelectedEvent = [];
+        let unsubscribeResidents = () => {};
+        let unsubscribeSettings = () => {};
+        let unsubscribeUsers = () => {};
+        let unsubscribeSession = () => {};
+        let currentQuorumRatio = 0;
+        let currentPersonQuorumRatio = 0;
+
+        // --- Firestore Paths ---
+        const eventsCollectionPath = () => ["events"];
+        const eventDocPath = (eventId) => ["events", eventId];
+        const residentsCollectionPath = (eventId) => ["events", eventId, "residents"];
+        const residentDocPath = (eventId, residentId) => ["events", eventId, "residents", residentId];
+        const usersCollectionPath = () => ["users"];
+        const userDocPath = (userId) => ["users", userId];
+
+        // This listener ensures that the rest of the code runs only after the HTML document is fully loaded.
+        window.addEventListener('DOMContentLoaded', () => {
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const publicViewEventId = urlParams.get('event');
+            const isPublicView = urlParams.get('view') === 'public';
+
+            if (isPublicView && publicViewEventId) {
+                initializeAppPublic(publicViewEventId);
+            } else {
+                initializeAppPrivate();
+            }
+        });
+
+        function initializeAppPrivate() {
+            // --- DOM Elements ---
+            const loginView = document.getElementById('login-view');
+            const eventSelectionView = document.getElementById('event-selection-view');
+            const eventDetailsView = document.getElementById('event-details-view');
+            const userManagementView = document.getElementById('user-management-view');
+            const appContainer = document.getElementById('app');
+            const userDisplay = document.getElementById('user-display');
+            const userDisplayDetails = document.getElementById('user-display-details');
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
-            const rememberMeCheckbox = document.getElementById('rememberMe');
-            const togglePasswordVisibilityButton = document.getElementById('togglePasswordVisibility');
-            const eyeIcon = document.getElementById('eyeIcon');
-            const eyeOffIcon = document.getElementById('eyeOffIcon');
-            const communityNameDisplay = document.getElementById('communityNameDisplay');
+            const rememberMeCheckbox = document.getElementById('remember-me');
+            const togglePasswordBtn = document.getElementById('togglePassword');
+            const scanGunForm = document.getElementById('scan-gun-form');
+            const scanGunInput = document.getElementById('scan-gun-input');
+            const loginForm = document.getElementById('login-form');
+            const shareDashboardBtn = document.getElementById('share-dashboard-btn');
+            const shareModal = document.getElementById('share-modal');
+            const closeShareModalBtn = document.getElementById('close-share-modal-btn');
+            const shareQrCodeContainer = document.getElementById('share-qr-code');
+            const shareLink = document.getElementById('share-link');
+            const shareUrlDisplay = document.getElementById('share-url-display');
+            const addUserForm = document.getElementById('add-user-form');
+            const userManagementBtn = document.getElementById('user-management-btn');
+            const backToEventsFromUsersBtn = document.getElementById('back-to-events-from-users-btn');
             
-            const settingsButton = document.getElementById('settingsButton');
-            const settingsModal = document.getElementById('settingsModal');
-            const closeModalButton = document.getElementById('closeModalButton');
-            
-            const settingsPasswordModal = document.getElementById('settingsPasswordModal');
-            const settingsPasswordForm = document.getElementById('settingsPasswordForm');
-            const settingsPasswordInput = document.getElementById('settingsPassword');
-            const passwordErrorMessage = document.getElementById('passwordErrorMessage');
-            const closePasswordModalButton = document.getElementById('closePasswordModalButton');
+            appContainer.style.display = 'block';
 
-            const settingsMessage = document.getElementById('settingsMessage');
-            const communityNameInput = document.getElementById('communityNameInput');
-            const saveCommunityNameButton = document.getElementById('saveCommunityNameButton');
+            // --- Loader & Modal ---
+            const loader = document.getElementById('loader');
+            const showLoader = () => loader.classList.remove('hidden');
+            const hideLoader = () => loader.classList.add('hidden');
 
-            const accountForm = document.getElementById('accountForm');
-            const accountUsernameInput = document.getElementById('accountUsername');
-            const accountPasswordInput = document.getElementById('accountPassword');
-            const accountRedirectUrlInput = document.getElementById('accountRedirectUrl');
-            const accountFormSubmitButton = document.getElementById('accountFormSubmitButton');
-            const editUserIdInput = document.getElementById('editUserId');
-            const cancelEditButton = document.getElementById('cancelEditButton');
-            const userList = document.getElementById('userList');
+            const customModal = document.getElementById('custom-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalHtmlContent = document.getElementById('modal-html-content');
+            const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+            let onConfirmCallback = null;
 
-            // --- 資料管理 ---
-            const USERS_KEY = 'loginSystem_users';
-            const REMEMBERED_USER_KEY = 'loginSystem_rememberedUser';
-            const COMMUNITY_NAME_KEY = 'loginSystem_communityName';
-            const URL_PREFIX = 'https://nwtaiwan.github.io/';
+            function showCustomModal({ title, message = '', htmlContent = '', type = 'alert', onConfirm = null }) {
+                modalTitle.textContent = title;
 
-            // 取得使用者資料，若無則初始化
-            let users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-            if (users.length === 0) {
-                // 如果是第一次使用，建立一個預設帳號
-                users.push({ 
-                    id: Date.now(), 
-                    username: 'admin', 
-                    password: 'password',
-                    redirectUrl: 'https://nwtaiwan.github.io/default'
-                });
-                saveUsers();
-            }
-
-            function saveUsers() {
-                localStorage.setItem(USERS_KEY, JSON.stringify(users));
-            }
-
-            // --- 社區名稱邏輯 ---
-            function loadCommunityName() {
-                const savedName = localStorage.getItem(COMMUNITY_NAME_KEY) || '西北社區';
-                communityNameDisplay.textContent = savedName;
-                communityNameInput.value = savedName;
-                document.title = savedName + '財務系統';
-            }
-            
-            saveCommunityNameButton.addEventListener('click', () => {
-                const newName = communityNameInput.value.trim();
-                if (newName) {
-                    localStorage.setItem(COMMUNITY_NAME_KEY, newName);
-                    loadCommunityName();
-                    showSettingsMessage('社區名稱已更新！');
+                if (htmlContent) {
+                    modalHtmlContent.innerHTML = htmlContent;
+                    modalMessage.textContent = '';
                 } else {
-                    showSettingsMessage('社區名稱不能為空！', 'error');
+                    modalHtmlContent.innerHTML = '';
+                    modalMessage.textContent = message;
                 }
+
+                onConfirmCallback = onConfirm;
+                modalConfirmBtn.style.display = 'inline-block';
+                modalCancelBtn.style.display = type === 'confirm' ? 'inline-block' : 'none';
+                customModal.classList.remove('hidden');
+            }
+
+            function hideCustomModal() {
+                customModal.classList.add('hidden');
+                onConfirmCallback = null;
+            }
+
+            modalConfirmBtn.addEventListener('click', () => {
+                if (typeof onConfirmCallback === 'function') {
+                    onConfirmCallback();
+                }
+                hideCustomModal();
             });
 
-            // --- 記住帳號邏輯 ---
-            function loadRememberedUser() {
-                const rememberedUsername = localStorage.getItem(REMEMBERED_USER_KEY);
-                if (rememberedUsername) {
-                    usernameInput.value = rememberedUsername;
+            modalCancelBtn.addEventListener('click', hideCustomModal);
+            customModal.addEventListener('click', (e) => { if (e.target === customModal) hideCustomModal(); });
+            
+            // --- UI Logic ---
+            function setupUI() {
+                const eyeIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>`;
+                const eyeOffIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.67.127 2.455.364m0 18.461A10.05 10.05 0 0012 19c2.485 0 4.786-.99 6.437-2.625M12 5a9.955 9.955 0 014.242 1.031" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9a3 3 0 110 6 3 3 0 010-6z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 1l22 22" /></svg>`;
+                
+                togglePasswordBtn.innerHTML = eyeIcon;
+                togglePasswordBtn.addEventListener('click', () => {
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        togglePasswordBtn.innerHTML = eyeOffIcon;
+                    } else {
+                        passwordInput.type = 'password';
+                        togglePasswordBtn.innerHTML = eyeIcon;
+                    }
+                });
+
+                const savedUsername = localStorage.getItem('qrSystemUsername');
+                if (savedUsername) {
+                    usernameInput.value = savedUsername;
                     rememberMeCheckbox.checked = true;
                 }
             }
+            setupUI();
 
-            function handleRememberMe(username) {
-                if (rememberMeCheckbox.checked) {
-                    localStorage.setItem(REMEMBERED_USER_KEY, username);
+
+            // --- Authentication & Role Management ---
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                showLoader();
+                const username = usernameInput.value;
+                const password = passwordInput.value;
+                const emailForFirebase = `${username}@qrsystem.app`;
+                try {
+                    const userCredential = await signInWithEmailAndPassword(auth, emailForFirebase, password);
+                    const user = userCredential.user;
+                    
+                    const sessionId = crypto.randomUUID();
+                    localStorage.setItem('loginSessionId', sessionId);
+                    const userRef = doc(db, 'users', user.uid);
+                    await updateDoc(userRef, { loginSessionId: sessionId });
+
+                    if (rememberMeCheckbox.checked) {
+                        localStorage.setItem('qrSystemUsername', username);
+                    } else {
+                        localStorage.removeItem('qrSystemUsername');
+                    }
+                } catch (error) {
+                    console.error("Login failed", error);
+                    if (username === 'test' && error.code === 'auth/user-not-found') {
+                        showCustomModal({
+                            title: '初次設定',
+                            message: '未找到預設管理員帳號 (test)，是否要立即建立？ (密碼: 123456)',
+                            type: 'confirm',
+                            onConfirm: async () => {
+                                showLoader();
+                                try {
+                                    const userCredential = await createUserWithEmailAndPassword(auth, 'test@qrsystem.app', '123456');
+                                    const userRef = doc(db, 'users', userCredential.user.uid);
+                                    await setDoc(userRef, { username: 'test', email: userCredential.user.email, role: 'system_admin' });
+                                    showCustomModal({ title: '成功', message: '測試管理員帳號已建立，請重新登入。'});
+                                } catch (creationError) {
+                                     showCustomModal({ title: '錯誤', message: `測試帳號建立失敗: ${creationError.message}`});
+                                } finally {
+                                    hideLoader();
+                                }
+                            }
+                        });
+                    } else if (error.code === 'auth/invalid-credential') {
+                         showCustomModal({ title: '登入失敗', message: '帳號或密碼錯誤。'});
+                    } else {
+                         showCustomModal({ title: '登入失敗', message: `發生錯誤: ${error.message}`});
+                    }
+                } finally {
+                    hideLoader();
+                }
+            });
+
+            const handleLogout = async () => {
+                if (currentUser && currentUser.uid) {
+                    const userRef = doc(db, 'users', currentUser.uid);
+                    try {
+                        await updateDoc(userRef, { loginSessionId: null });
+                    } catch (error) {
+                        console.error("Failed to clear session on logout:", error);
+                    }
+                }
+                localStorage.removeItem('loginSessionId');
+                signOut(auth);
+            };
+
+            document.getElementById('logout-btn-events').addEventListener('click', handleLogout);
+            document.getElementById('logout-btn-details').addEventListener('click', handleLogout);
+            
+            onAuthStateChanged(auth, async user => {
+                unsubscribeResidents();
+                unsubscribeSettings();
+                unsubscribeUsers();
+                unsubscribeSession();
+
+                if (user && user.email) {
+                    const username = user.email.split('@')[0];
+                    const userRef = doc(db, 'users', user.uid);
+                    const userSnap = await getDoc(userRef);
+
+                    if (userSnap.exists()) {
+                        currentUser = { uid: user.uid, name: username, role: userSnap.data().role };
+                    } else {
+                        // This case handles users created but whose Firestore doc creation might have failed.
+                        // Default to 'staff' role for safety.
+                        const role = username === 'test' ? 'system_admin' : 'staff'; 
+                        await setDoc(userRef, { username: username, email: user.email, role: role });
+                        currentUser = { uid: user.uid, name: username, role: role };
+                    }
+                    
+                    if(currentUser.role === 'system_admin') {
+                       unsubscribeUsers = listenToUsers();
+                    }
+                    
+                    const localSessionId = localStorage.getItem('loginSessionId');
+                    unsubscribeSession = onSnapshot(doc(db, 'users', user.uid), (userDoc) => {
+                        if (userDoc.exists()) {
+                            const remoteSessionId = userDoc.data().loginSessionId;
+                            if (localSessionId && remoteSessionId && localSessionId !== remoteSessionId) {
+                                unsubscribeSession(); 
+                                showCustomModal({ title: '強制登出', message: '您的帳號已在另一台裝置登入，此裝置將自動登出。'});
+                                handleLogout();
+                            }
+                        }
+                    });
+
+                    document.body.classList.remove('bg-red-600');
+                    document.body.classList.add('bg-gray-100');
+                    userDisplay.textContent = `${currentUser.name} (${currentUser.role})`;
+                    userDisplayDetails.textContent = `${currentUser.name} (${currentUser.role})`;
+                    setupUIVisibilityByRole(currentUser.role);
+                    showEventSelectionView();
                 } else {
-                    localStorage.removeItem(REMEMBERED_USER_KEY);
+                    currentUser = { uid: null, name: null, role: null };
+                    document.body.classList.remove('bg-gray-100');
+                    document.body.classList.add('bg-red-600');
+                    loginView.classList.remove('hidden');
+                    eventSelectionView.classList.add('hidden');
+                    eventDetailsView.classList.add('hidden');
+                    userManagementView.classList.add('hidden');
+                    stopScanner();
+                }
+            });
+            
+            function setupUIVisibilityByRole(role) {
+                const createEventBtn = document.getElementById('create-event-btn');
+                const userManagementBtn = document.getElementById('user-management-btn');
+                const tabDashboard = document.getElementById('tab-dashboard');
+                const tabResidents = document.getElementById('tab-residents');
+                const tabScanner = document.getElementById('tab-scanner');
+                const tabSettings = document.getElementById('tab-settings');
+                
+                // Set all to a baseline (Staff)
+                createEventBtn.style.display = 'none';
+                userManagementBtn.style.display = 'none';
+                tabResidents.style.display = 'none';
+                tabSettings.style.display = 'none';
+                
+                // Dashboard and Scanner are always visible for logged-in users
+                tabDashboard.style.display = 'block';
+                tabScanner.style.display = 'block';
+                
+                // Junior Manager
+                if (role === 'junior_manager' || role === 'senior_manager' || role === 'system_admin') {
+                    tabResidents.style.display = 'block';
+                }
+
+                // Senior Manager
+                if (role === 'senior_manager' || role === 'system_admin') {
+                    createEventBtn.style.display = 'block';
+                    tabSettings.style.display = 'block';
+                }
+
+                // System Admin
+                if (role === 'system_admin') {
+                    userManagementBtn.style.display = 'block';
                 }
             }
 
-            // --- 密碼可視性切換 ---
-            togglePasswordVisibilityButton.addEventListener('click', () => {
-                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                passwordInput.setAttribute('type', type);
-                eyeIcon.classList.toggle('hidden');
-                eyeOffIcon.classList.toggle('hidden');
-            });
 
-            // --- 登入邏輯 ---
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const username = e.target.username.value;
-                const password = e.target.password.value;
-                handleRememberMe(username);
-                const user = users.find(u => u.username === username && u.password === password);
-                if (user) {
-                    loginMessage.textContent = '登入成功！正在跳轉...';
-                    loginMessage.classList.remove('text-red-500');
-                    loginMessage.classList.add('text-green-500');
-                    setTimeout(() => {
-                        window.location.href = user.redirectUrl;
-                    }, 1000);
-                } else {
-                    loginMessage.textContent = '帳號或密碼錯誤！';
-                    loginMessage.classList.remove('text-green-500');
-                    loginMessage.classList.add('text-red-500');
-                }
-            });
+            // --- View Management ---
+            function showEventSelectionView() {
+                selectedEventId = null;
+                loginView.classList.add('hidden');
+                eventDetailsView.classList.add('hidden');
+                userManagementView.classList.add('hidden');
+                eventSelectionView.classList.remove('hidden');
+                stopScanner();
+                listenToEvents();
+            }
 
-            // --- 設定面板 & 密碼驗證邏輯 ---
-            settingsButton.addEventListener('click', () => {
-                settingsPasswordModal.classList.add('active');
-                settingsPasswordInput.focus();
-            });
-
-            function closePasswordModal() {
-                settingsPasswordModal.classList.remove('active');
-                settingsPasswordForm.reset();
-                passwordErrorMessage.textContent = '';
+            function showEventDetailsView(eventId) {
+                selectedEventId = eventId;
+                eventSelectionView.classList.add('hidden');
+                userManagementView.classList.add('hidden');
+                eventDetailsView.classList.remove('hidden');
+                initializeEventData(eventId);
             }
             
-            closePasswordModalButton.addEventListener('click', closePasswordModal);
+            function showUserManagementView() {
+                loginView.classList.add('hidden');
+                eventSelectionView.classList.add('hidden');
+                eventDetailsView.classList.add('hidden');
+                userManagementView.classList.remove('hidden');
+            }
+            
+            userManagementBtn.addEventListener('click', showUserManagementView);
+            backToEventsFromUsersBtn.addEventListener('click', showEventSelectionView);
 
-            settingsPasswordForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const today = new Date();
-                const year = today.getFullYear();
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                const day = String(today.getDate()).padStart(2, '0');
-                const correctPassword = `${year}${month}${day}0217`;
 
-                if (settingsPasswordInput.value === correctPassword) {
-                    closePasswordModal();
-                    settingsModal.classList.add('active');
-                    renderUserList();
-                } else {
-                    passwordErrorMessage.textContent = '密碼錯誤！';
+            document.getElementById('back-to-events-btn').addEventListener('click', showEventSelectionView);
+
+
+            // --- Event Management ---
+            function listenToEvents() {
+                const eventsList = document.getElementById('events-list');
+                const q = query(collection(db, ...eventsCollectionPath()));
+
+                onSnapshot(q, (snapshot) => {
+                    eventsList.innerHTML = '';
+                    if (snapshot.empty) {
+                        eventsList.innerHTML = `<p class="text-gray-500 md:col-span-3 text-center">尚未建立任何活動，請點擊右上角新增。</p>`;
+                        return;
+                    }
+                    
+                    const eventsData = [];
+                    snapshot.forEach(doc => {
+                        eventsData.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    eventsData.sort((a, b) => {
+                        const dateA = a.eventDate ? new Date(a.eventDate).getTime() : 0;
+                        const dateB = b.eventDate ? new Date(b.eventDate).getTime() : 0;
+                        return dateB - dateA;
+                    });
+
+                    eventsData.forEach(event => {
+                        const card = document.createElement('div');
+                        const isOwner = currentUser.uid === event.creatorId;
+                        
+                        card.className = `p-6 rounded-xl shadow-md transition flex flex-col justify-between cursor-pointer hover:shadow-lg ${isOwner ? 'bg-red-600 text-white' : 'bg-white'}`;
+                        
+                        const showDeleteButton = currentUser.role === 'system_admin' || currentUser.role === 'senior_manager';
+                        const deleteButtonHTML = showDeleteButton ? `
+                            <button data-id="${event.id}" class="delete-event-card-btn ${isOwner ? 'text-red-200 hover:text-white' : 'text-gray-400 hover:text-red-600'}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="pointer-events: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        ` : '';
+
+                        const formattedDateTime = event.eventDate ? event.eventDate.replace('T', ' ') : '無日期';
+
+                        card.innerHTML = `
+                            <div>
+                                <div class="flex justify-between items-start">
+                                    <h3 class="text-lg font-bold ${isOwner ? 'text-white' : 'text-red-700'}">${event.communityName}</h3>
+                                    ${deleteButtonHTML}
+                                </div>
+                                <p class="text-md ${isOwner ? 'text-gray-200' : 'text-gray-800'}">${event.eventName}</p>
+                            </div>
+                            <div class="mt-4 pt-4 border-t ${isOwner ? 'border-red-500' : 'border-gray-100'}">
+                                <p class="text-sm ${isOwner ? 'text-red-200' : 'text-gray-500'}">${formattedDateTime}</p>
+                                <p class="text-xs ${isOwner ? 'text-red-300' : 'text-gray-400'} mt-1">建立者: ${event.creatorName || 'N/A'}</p>
+                            </div>
+                        `;
+                        card.addEventListener('click', (e) => {
+                            if (e.target.closest('.delete-event-card-btn')) {
+                                return; 
+                            }
+                            showEventDetailsView(event.id);
+                        });
+                        eventsList.appendChild(card);
+                    });
+                }, error => {
+                    console.error("Error listening to events collection:", error);
+                    showCustomModal({ title: '錯誤', message: "無法讀取活動列表，請檢查您的網路連線或 Firebase 安全規則。"});
+                });
+            }
+            
+            document.getElementById('events-list').addEventListener('click', async (e) => {
+                const deleteButton = e.target.closest('.delete-event-card-btn');
+                if (deleteButton) {
+                    e.stopPropagation();
+                    const eventId = deleteButton.dataset.id;
+                    showCustomModal({
+                        title: '確認刪除',
+                        message: '您確定要刪除這個活動嗎？此操作將一併刪除所有住戶資料，且無法復原！',
+                        type: 'confirm',
+                        onConfirm: async () => {
+                            showLoader();
+                            try {
+                                await deleteEventAndSubcollection(eventId);
+                                showCustomModal({ title: '成功', message: '活動已成功刪除。'});
+                            } catch (error) {
+                                console.error("Error deleting event from card:", error);
+                                showCustomModal({ title: '錯誤', message: '刪除活動失敗。'});
+                            } finally {
+                                hideLoader();
+                            }
+                        }
+                    });
                 }
             });
-            
-            closeModalButton.addEventListener('click', () => {
-                settingsModal.classList.remove('active');
-            });
 
-            // --- 帳號管理邏輯 ---
-            function renderUserList() {
-                userList.innerHTML = '';
-                if(users.length === 0) {
-                    userList.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-gray-500">目前沒有任何帳號</td></tr>`;
+            // --- Event Creation Modal ---
+            const createEventModal = document.getElementById('create-event-modal');
+            const createEventForm = document.getElementById('create-event-form');
+
+            document.getElementById('create-event-btn').addEventListener('click', () => {
+                createEventForm.reset();
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                document.getElementById('new-event-date').value = now.toISOString().slice(0,16);
+                createEventModal.classList.remove('hidden');
+            });
+            document.getElementById('cancel-event-btn').addEventListener('click', () => createEventModal.classList.add('hidden'));
+            document.getElementById('save-event-btn').addEventListener('click', async () => {
+                const communityName = document.getElementById('new-community-name').value;
+                const eventName = document.getElementById('new-event-name').value;
+                const eventDate = document.getElementById('new-event-date').value;
+
+                if (!communityName || !eventName || !eventDate) {
+                    showCustomModal({ title: '提醒', message: '請填寫所有欄位！'});
                     return;
                 }
-                users.forEach(user => {
-                    const tr = document.createElement('tr');
-                    const displayUrl = user.redirectUrl.startsWith(URL_PREFIX) 
-                        ? user.redirectUrl.substring(URL_PREFIX.length) 
-                        : user.redirectUrl;
+                
+                showLoader();
+                try {
+                    await addDoc(collection(db, ...eventsCollectionPath()), {
+                        communityName,
+                        eventName,
+                        eventDate,
+                        ownershipRatio: 66.67, // Default value
+                        personRatio: 50, // Default value
+                        createdAt: serverTimestamp(),
+                        creatorId: currentUser.uid,
+                        creatorName: currentUser.name
+                    });
+                    createEventModal.classList.add('hidden');
+                } catch (error) {
+                    console.error("Error creating event:", error);
+                    showCustomModal({ title: '錯誤', message: '建立活動失敗。'});
+                } finally {
+                    hideLoader();
+                }
+            });
 
-                    tr.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHTML(user.username)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(user.password)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">
-                            ${escapeHTML(displayUrl)}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium space-x-2">
-                            <button class="edit-btn text-indigo-600 hover:text-indigo-900" data-id="${user.id}">編輯</button>
-                            <button class="delete-btn text-red-600 hover:text-red-900" data-id="${user.id}">刪除</button>
-                        </td>
-                    `;
-                    userList.appendChild(tr);
+
+            // --- Event-Specific Logic ---
+            function initializeEventData(eventId) {
+                unsubscribeSettings(); 
+                unsubscribeSettings = listenToEventSettings(eventId);
+                
+                unsubscribeResidents();
+                unsubscribeResidents = listenToResidents(eventId);
+                
+                switchTab('dashboard');
+            }
+
+            // --- Tabs Navigation ---
+            const tabs = { dashboard: document.getElementById('tab-dashboard'), residents: document.getElementById('tab-residents'), scanner: document.getElementById('tab-scanner'), settings: document.getElementById('tab-settings') };
+            const contents = { dashboard: document.getElementById('dashboard-content'), residents: document.getElementById('residents-content'), scanner: document.getElementById('scanner-content'), settings: document.getElementById('settings-content')};
+            
+            Object.keys(tabs).forEach(key => {
+                tabs[key].addEventListener('click', () => switchTab(key));
+            });
+
+            function switchTab(tabKey) {
+                if (tabKey !== 'scanner') stopScanner();
+                Object.keys(tabs).forEach(key => {
+                    // Only toggle if the tab exists and is visible
+                    if(tabs[key] && tabs[key].style.display !== 'none') {
+                        tabs[key].classList.toggle('active', key === tabKey);
+                    }
+                     if(contents[key]) {
+                        contents[key].classList.toggle('hidden', key !== tabKey);
+                     }
+                });
+                if (tabKey === 'scanner') {
+                    setTimeout(() => {
+                        scanGunInput.focus();
+                    }, 100); 
+                }
+            }
+            
+            // --- Settings Management (Event Specific) ---
+            const settingsForm = document.getElementById('settings-form');
+            
+            function listenToEventSettings(eventId) {
+                const eventRef = doc(db, ...eventDocPath(eventId));
+                return onSnapshot(eventRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        document.getElementById('community-name').value = data.communityName || '';
+                        document.getElementById('event-name').value = data.eventName || '';
+                        document.getElementById('event-date').value = data.eventDate || '';
+                        document.getElementById('ownership-ratio').value = data.ownershipRatio || '';
+                        document.getElementById('person-ratio').value = data.personRatio || '';
+                        document.getElementById('attendance-fee').value = data.attendanceFee || '';
+                        currentQuorumRatio = parseFloat(data.ownershipRatio) || 0;
+                        currentPersonQuorumRatio = parseFloat(data.personRatio) || 0;
+
+                        document.getElementById('community-name-display').textContent = data.communityName || '請先設定社區名稱';
+                        document.getElementById('event-title-display').textContent = data.eventName || 'QR Code 報到系統';
+                        updateDashboardCalculations();
+                    }
+                });
+            }
+            
+            settingsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!selectedEventId) return;
+                showLoader();
+                const eventRef = doc(db, ...eventDocPath(selectedEventId));
+                try {
+                    await updateDoc(eventRef, {
+                        communityName: document.getElementById('community-name').value,
+                        eventName: document.getElementById('event-name').value,
+                        eventDate: document.getElementById('event-date').value,
+                        ownershipRatio: document.getElementById('ownership-ratio').value,
+                        personRatio: document.getElementById('person-ratio').value,
+                        attendanceFee: document.getElementById('attendance-fee').value,
+                    });
+                    showCustomModal({ title: '成功', message: '設定已儲存！'});
+                } catch (error) {
+                    console.error("Error saving settings:", error);
+                    showCustomModal({ title: '錯誤', message: '儲存失敗，請檢查網路連線。'});
+                } finally {
+                    hideLoader();
+                }
+            });
+            
+            // --- Resident Management (Event Specific) ---
+            const residentModal = document.getElementById('resident-modal');
+            const residentModalTitle = document.getElementById('resident-modal-title');
+            const addResidentForm = document.getElementById('add-resident-form');
+            const residentIdInput = document.getElementById('resident-id');
+            const residentQrcodeValueInput = document.getElementById('resident-qrcode-value');
+            const residentUnitInput = document.getElementById('resident-unit');
+            const residentNameInput = document.getElementById('resident-name');
+            const residentAddressInput = document.getElementById('resident-address');
+            const residentAreaInput = document.getElementById('resident-area');
+            const residentOwnershipInput = document.getElementById('resident-ownership');
+
+            function openResidentModal(resident = null) {
+                addResidentForm.reset();
+                if (resident) {
+                    residentModalTitle.textContent = '編輯住戶';
+                    residentIdInput.value = resident.id;
+                    residentQrcodeValueInput.value = resident.qrcodeValue || '';
+                    residentUnitInput.value = resident.unit;
+                    residentNameInput.value = resident.name;
+                    residentAddressInput.value = resident.address || '';
+                    residentAreaInput.value = resident.area || 0;
+                    residentOwnershipInput.value = resident.ownership || 0;
+                } else {
+                    residentModalTitle.textContent = '新增住戶';
+                    residentIdInput.value = '';
+                }
+                residentModal.classList.remove('hidden');
+            }
+
+            function closeResidentModal() {
+                residentModal.classList.add('hidden');
+            }
+
+            document.getElementById('add-resident-modal-btn').addEventListener('click', () => openResidentModal());
+            document.getElementById('cancel-resident-modal-btn').addEventListener('click', closeResidentModal);
+
+            addResidentForm.addEventListener('submit', async(e) => {
+                e.preventDefault();
+                if (!selectedEventId) return;
+                
+                showLoader();
+                const qrcodeValue = residentQrcodeValueInput.value;
+                const unit = residentUnitInput.value;
+                const name = residentNameInput.value;
+                const address = residentAddressInput.value;
+                const area = parseFloat(residentAreaInput.value) || 0;
+                const ownership = parseFloat(residentOwnershipInput.value) || 0;
+                const residentId = residentIdInput.value;
+                const createdAt = Date.now();
+
+                try {
+                    if (residentId) {
+                        const residentRef = doc(db, ...residentDocPath(selectedEventId, residentId));
+                        await updateDoc(residentRef, { qrcodeValue, unit, name, address, area, ownership });
+                    } else {
+                        await addDoc(collection(db, ...residentsCollectionPath(selectedEventId)), {
+                            qrcodeValue, unit, name, address, area, ownership, isCheckedIn: false, checkInTimestamp: null, createdAt
+                        });
+                    }
+                    closeResidentModal();
+                } catch (error) {
+                    console.error("Error saving resident:", error);
+                    showCustomModal({ title: '錯誤', message: '儲存住戶失敗！請確認QR Code生成碼是否唯一。'});
+                } finally {
+                    hideLoader();
+                }
+            });
+
+            function listenToResidents(eventId) {
+                const q = query(collection(db, ...residentsCollectionPath(eventId)));
+                return onSnapshot(q, (querySnapshot) => {
+                    const residentsListTbody = document.getElementById('residents-list');
+                    residentsListTbody.innerHTML = '';
+                    allResidentsForSelectedEvent = [];
+                    querySnapshot.forEach((doc) => allResidentsForSelectedEvent.push({ id: doc.id, ...doc.data() }));
+                    
+                    // Sort by creation time to respect CSV import order
+                    allResidentsForSelectedEvent.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+                    
+                    allResidentsForSelectedEvent.forEach(resident => {
+                        const tr = document.createElement('tr');
+                        tr.className = resident.isCheckedIn ? 'checked-in-row' : '';
+                        
+                        const manualCheckinBtnClass = resident.isCheckedIn ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-400 hover:bg-gray-500';
+                        const manualCheckinBtnText = resident.isCheckedIn ? '取消報到' : '手動報到';
+                        const qrValue = resident.qrcodeValue || resident.id;
+
+                        tr.innerHTML = `
+                            <td class="px-2 py-2 whitespace-nowrap text-center"><span class="inline-block h-4 w-4 rounded-full ${resident.isCheckedIn ? 'bg-green-500' : 'bg-gray-300'}"></span></td>
+                            <td class="px-2 py-2 whitespace-nowrap">${resident.qrcodeValue || ''}</td>
+                            <td class="px-2 py-2 whitespace-nowrap">${resident.unit}</td>
+                            <td class="px-2 py-2 whitespace-nowrap">${resident.name}</td>
+                            <td class="px-2 py-2 whitespace-nowrap">${resident.address || ''}</td>
+                            <td class="px-2 py-2 whitespace-nowrap">${resident.area || 0}</td>
+                            <td class="px-2 py-2 whitespace-nowrap">${resident.ownership || 0}%</td>
+                            <td class="px-2 py-2"><div id="qr-${resident.id}" class="mx-auto"></div></td>
+                            <td class="px-2 py-2 whitespace-nowrap text-sm font-medium">
+                                <button data-id="${resident.id}" class="manual-checkin-btn text-white text-xs py-1 px-2 rounded ${manualCheckinBtnClass}">${manualCheckinBtnText}</button>
+                                <button data-id="${resident.id}" class="edit-btn text-blue-600 hover:text-blue-900 ml-2">編輯</button>
+                                <button data-id="${resident.id}" class="delete-btn text-red-600 hover:text-red-900 ml-2">刪除</button>
+                            </td>
+                        `;
+                        residentsListTbody.appendChild(tr);
+                        new QRCode(document.getElementById(`qr-${resident.id}`), { text: qrValue, width: 48, height: 48 });
+                    });
+
+                    if (allResidentsForSelectedEvent.length === 0) {
+                        residentsListTbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">請新增住戶</td></tr>`;
+                    }
+
+                    updateDashboardCalculations();
                 });
             }
 
-            accountForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const username = accountUsernameInput.value.trim();
-                const password = accountPasswordInput.value.trim();
-                const urlSuffix = accountRedirectUrlInput.value.trim();
-                const userId = editUserIdInput.value;
+            function updateDashboardCalculations() {
+                const recentCheckInsList = document.getElementById('recent-check-ins-list');
+                const scannerRecentList = document.getElementById('scanner-recent-list');
+                const quorumMessage = document.getElementById('quorum-message');
+                const quorumPersonMessage = document.getElementById('quorum-person-message');
 
-                if (!username || !password || !urlSuffix) {
-                    showSettingsMessage('帳號、密碼和代碼不能為空！', 'error');
+                let checkedInCount = 0;
+                let recentCheckIns = [];
+                let totalOwnership = 0;
+                let checkedInOwnership = 0;
+
+                allResidentsForSelectedEvent.forEach(resident => {
+                    const ownershipValue = parseFloat(resident.ownership) || 0;
+                    totalOwnership += ownershipValue;
+                    if (resident.isCheckedIn) {
+                        checkedInCount++;
+                        checkedInOwnership += ownershipValue;
+                        recentCheckIns.push(resident);
+                    }
+                });
+
+                document.getElementById('total-residents').textContent = allResidentsForSelectedEvent.length;
+                document.getElementById('checked-in-count').textContent = checkedInCount;
+                document.getElementById('scanner-checked-in').textContent = checkedInCount;
+                document.getElementById('scanner-total').textContent = allResidentsForSelectedEvent.length;
+
+                const personRate = allResidentsForSelectedEvent.length > 0 ? ((checkedInCount / allResidentsForSelectedEvent.length) * 100).toFixed(1) : 0;
+                document.getElementById('check-in-rate').textContent = `${personRate}%`;
+
+                const ownershipRate = (checkedInOwnership).toFixed(4);
+                document.getElementById('ownership-check-in-rate').textContent = `${ownershipRate}%`;
+
+                document.getElementById('person-ratio-target').textContent = `(目標: ${currentPersonQuorumRatio}%)`;
+                document.getElementById('ownership-ratio-target').textContent = `(目標: ${currentQuorumRatio}%)`;
+
+
+                if (currentPersonQuorumRatio > 0 && personRate >= currentPersonQuorumRatio) {
+                    quorumPersonMessage.classList.remove('hidden');
+                } else {
+                    quorumPersonMessage.classList.add('hidden');
+                }
+
+                if (currentQuorumRatio > 0 && ownershipRate >= currentQuorumRatio) {
+                    quorumMessage.classList.remove('hidden');
+                } else {
+                    quorumMessage.classList.add('hidden');
+                }
+                
+                recentCheckIns.sort((a, b) => (b.checkInTimestamp?.seconds || 0) - (a.checkInTimestamp?.seconds || 0));
+                if (recentCheckIns.length > 0) {
+                    recentCheckInsList.innerHTML = '';
+                    scannerRecentList.innerHTML = '';
+                    const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+                    recentCheckIns.slice(0, 10).forEach(r => {
+                        const time = r.checkInTimestamp ? new Date(r.checkInTimestamp.seconds * 1000).toLocaleString('zh-TW', options).replace(/\//g, '-') : 'N/A';
+                        recentCheckInsList.innerHTML += `<tr>
+                            <td class="px-4 py-2">${r.unit}</td>
+                            <td class="px-4 py-2">${time}</td>
+                            <td class="px-4 py-2">${r.checkInMethod || 'N/A'}</td>
+                            <td class="px-4 py-2">${r.checkInBy || 'N/A'}</td>
+                        </tr>`;
+                        
+                        const simpleTime = r.checkInTimestamp ? new Date(r.checkInTimestamp.seconds * 1000).toLocaleTimeString('zh-TW') : 'N/A';
+                        const checkInInfo = r.checkInBy && r.checkInMethod 
+                            ? `<span class="text-sm text-gray-500 block">由 ${r.checkInBy} 透過 ${r.checkInMethod} 報到</span>`
+                            : '';
+                        scannerRecentList.innerHTML += `<li class="p-2 bg-gray-100 rounded-md">
+                            <div>
+                                <span class="font-bold">${r.unit} ${r.name}</span> - ${simpleTime}
+                            </div>
+                            ${checkInInfo}
+                        </li>`;
+                    });
+                } else {
+                    recentCheckInsList.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">尚無報到紀錄</td></tr>`;
+                    scannerRecentList.innerHTML = `<li class="text-gray-500 text-center">掃碼紀錄將顯示於此</li>`;
+                }
+            }
+            
+            document.getElementById('residents-list').addEventListener('click', async e => {
+                const target = e.target;
+                const residentId = target.dataset.id;
+                
+                if (target.classList.contains('delete-btn')) {
+                    showCustomModal({
+                        title: '確認刪除',
+                        message: '確定要刪除這位住戶嗎？',
+                        type: 'confirm',
+                        onConfirm: async () => {
+                            await deleteDoc(doc(db, ...residentDocPath(selectedEventId, residentId)));
+                        }
+                    });
+                }
+                if (target.classList.contains('edit-btn')) {
+                    const resident = allResidentsForSelectedEvent.find(r => r.id === residentId);
+                    if (resident) {
+                        openResidentModal(resident);
+                    }
+                }
+                if (target.classList.contains('manual-checkin-btn')) {
+                    const resident = allResidentsForSelectedEvent.find(r => r.id === residentId);
+                    if(resident) {
+                        const residentRef = doc(db, ...residentDocPath(selectedEventId, residentId));
+                        if (resident.isCheckedIn) {
+                           showCustomModal({
+                                title: '確認',
+                                message: `確定要取消 ${resident.unit} ${resident.name} 的報到嗎？`,
+                                type: 'confirm',
+                                onConfirm: async () => {
+                                    await updateDoc(residentRef, { isCheckedIn: false, checkInTimestamp: null, checkInMethod: null, checkInBy: null });
+                                }
+                           });
+                        } else {
+                            showCustomModal({
+                                title: '確認',
+                                message: `確定要為 ${resident.unit} ${resident.name} 手動報到嗎？`,
+                                type: 'confirm',
+                                onConfirm: async () => {
+                                    await updateDoc(residentRef, { isCheckedIn: true, checkInTimestamp: new Date(), checkInMethod: '手動', checkInBy: currentUser.name });
+                                }
+                           });
+                        }
+                    }
+                }
+            });
+            
+            // --- QR Scanner ---
+            let html5QrCode = null;
+            const startScanBtn = document.getElementById('start-scan-btn');
+            const stopScanBtn = document.getElementById('stop-scan-btn');
+            const readerPlaceholder = document.getElementById('reader-placeholder');
+
+            scanGunForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const code = scanGunInput.value.trim();
+                if (code) {
+                    handleCheckIn(code, '掃碼槍');
+                    scanGunInput.value = '';
+                }
+            });
+
+            function speak(text) {
+                // Check if the Speech Synthesis API is supported
+                if ('speechSynthesis' in window) {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'zh-TW';
+                    speechSynthesis.speak(utterance);
+                }
+            }
+
+            startScanBtn.addEventListener('click', () => {
+                if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+                const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 };
+                
+                readerPlaceholder.classList.add('hidden');
+                html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => handleCheckIn(decodedText, '攝影機'))
+                    .then(() => {
+                        startScanBtn.disabled = true;
+                        stopScanBtn.disabled = false;
+                    })
+                    .catch(err => {
+                        document.getElementById('scanner-status').textContent = '無法啟動攝影機。請確認權限。';
+                        document.getElementById('scanner-status').className = 'mt-4 text-center font-semibold p-3 rounded-md bg-red-100 text-red-700';
+                        readerPlaceholder.classList.remove('hidden');
+                    });
+            });
+
+            stopScanBtn.addEventListener('click', stopScanner);
+
+            function stopScanner() {
+                if (html5QrCode && html5QrCode.isScanning) {
+                    html5QrCode.stop()
+                        .then(() => {
+                            startScanBtn.disabled = false;
+                            stopScanBtn.disabled = true;
+                            readerPlaceholder.classList.remove('hidden');
+                            document.getElementById('scanner-status').innerHTML = '&nbsp;';
+                            document.getElementById('scanner-status').className = 'mt-4 text-center font-semibold p-3 rounded-md';
+                        })
+                        .catch(err => console.log("QR scanner stop failed.", err));
+                }
+            }
+            
+            let lastScanTime = 0, lastScannedId = null;
+            async function handleCheckIn(decodedText, method) {
+                const now = Date.now();
+                // Debounce to prevent multiple scans of the same code
+                if (now - lastScanTime < 3000 && lastScannedId === decodedText) return;
+                lastScanTime = now;
+                lastScannedId = decodedText;
+
+                const scannerStatus = document.getElementById('scanner-status');
+                
+                const q = query(collection(db, ...residentsCollectionPath(selectedEventId)), where("qrcodeValue", "==", decodedText));
+                const querySnapshot = await getDocs(q);
+
+                if (!querySnapshot.empty) {
+                    const residentDoc = querySnapshot.docs[0];
+                    const resident = residentDoc.data();
+                    const residentRef = residentDoc.ref;
+
+                    if (resident.isCheckedIn) {
+                        scannerStatus.textContent = `重複報到: ${resident.unit} ${resident.name} 已於 ${new Date(resident.checkInTimestamp.seconds * 1000).toLocaleTimeString('zh-TW')} 報到。`;
+                        scannerStatus.className = 'mt-4 text-center font-semibold p-3 rounded-md bg-yellow-100 text-yellow-800';
+                        speak("重複掃碼");
+                    } else {
+                        await updateDoc(residentRef, { 
+                            isCheckedIn: true, 
+                            checkInTimestamp: new Date(),
+                            checkInMethod: method,
+                            checkInBy: currentUser.name
+                        });
+                        scannerStatus.textContent = `報到成功: ${resident.unit} ${resident.name}`;
+                        scannerStatus.className = 'mt-4 text-center font-semibold p-3 rounded-md bg-green-100 text-green-800';
+                        speak("報到成功");
+                    }
+                } else {
+                    scannerStatus.textContent = '無效的 QR Code，找不到對應的住戶資料。';
+                    scannerStatus.className = 'mt-4 text-center font-semibold p-3 rounded-md bg-red-100 text-red-700';
+                    speak("無效的QR code");
+                }
+            }
+            
+            // --- Reset, Delete, and Print ---
+            async function deleteEventAndSubcollection(eventId) {
+                if (!eventId) return;
+                const residentsColRef = collection(db, ...residentsCollectionPath(eventId));
+                const residentsSnapshot = await getDocs(residentsColRef);
+                if (!residentsSnapshot.empty) {
+                    const batch = writeBatch(db);
+                    residentsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                }
+                await deleteDoc(doc(db, ...eventDocPath(eventId)));
+            }
+
+            document.getElementById('reset-checkin-btn').addEventListener('click', async () => {
+                showCustomModal({
+                    title: '確認',
+                    message: '您確定要重設此活動所有住戶的報到紀錄嗎？此操作無法復原！',
+                    type: 'confirm',
+                    onConfirm: async () => {
+                        showLoader();
+                        const batch = writeBatch(db);
+                        const residentsToCheck = allResidentsForSelectedEvent.filter(r => r.isCheckedIn);
+                        if(residentsToCheck.length > 0) {
+                            residentsToCheck.forEach(resident => {
+                                const residentRef = doc(db, ...residentDocPath(selectedEventId, resident.id));
+                                batch.update(residentRef, { isCheckedIn: false, checkInTimestamp: null, checkInMethod: null, checkInBy: null });
+                            });
+                            await batch.commit();
+                            hideLoader();
+                            showCustomModal({ title: '成功', message: '所有報到紀錄已成功重設！'});
+                        } else {
+                            hideLoader();
+                            showCustomModal({ title: '資訊', message: '目前沒有任何報到紀錄可重設。'});
+                        }
+                    }
+                });
+            });
+
+            document.getElementById('delete-event-btn').addEventListener('click', async () => {
+                const eventRef = doc(db, ...eventDocPath(selectedEventId));
+                const eventSnap = await getDoc(eventRef);
+                if (eventSnap.exists()) {
+                    const eventData = eventSnap.data();
+                    if (eventData.creatorId && eventData.creatorId !== currentUser.uid && currentUser.role !== 'system_admin') {
+                        showCustomModal({ title: '權限不足', message: '只有建立者或系統管理員才能刪除此活動。'});
+                        return;
+                    }
+                }
+
+                showCustomModal({
+                    title: '確認刪除活動',
+                    message: '您確定要刪除整個活動嗎？包含所有住戶資料和報到紀錄，此操作無法復原！',
+                    type: 'confirm',
+                    onConfirm: async () => {
+                        showLoader();
+                        try {
+                            await deleteEventAndSubcollection(selectedEventId);
+                            showEventSelectionView();
+                        } catch (error) {
+                            console.error("Error deleting event from settings:", error);
+                            showCustomModal({ title: '錯誤', message: '刪除活動失敗。'});
+                        } finally {
+                            hideLoader();
+                        }
+                    }
+                });
+            });
+
+            document.getElementById('print-roster-btn').addEventListener('click', () => {
+                const printArea = document.getElementById('print-area');
+                const communityName = document.getElementById('community-name-display').textContent;
+                const eventName = document.getElementById('event-title-display').textContent;
+                const eventDateValue = document.getElementById('event-date').value;
+                const attendanceFee = document.getElementById('attendance-fee').value || '_____';
+                
+                if (allResidentsForSelectedEvent.length === 0) {
+                    showCustomModal({ title: '提醒', message: '沒有住戶資料可列印。'});
                     return;
                 }
                 
-                const redirectUrl = URL_PREFIX + urlSuffix;
-
-                if (userId) { // 編輯模式
-                    const userIndex = users.findIndex(u => u.id == userId);
-                    if (userIndex > -1) {
-                        if (users.some(u => u.username === username && u.id != userId)) {
-                            showSettingsMessage('此帳號名稱已被使用！', 'error'); return;
-                        }
-                        users[userIndex] = { ...users[userIndex], username, password, redirectUrl };
-                        showSettingsMessage('帳號更新成功！');
-                    }
-                } else { // 新增模式
-                    if (users.some(u => u.username === username)) {
-                        showSettingsMessage('此帳號名稱已被使用！', 'error'); return;
-                    }
-                    users.push({ id: Date.now(), username, password, redirectUrl });
-                    showSettingsMessage('帳號新增成功！');
+                let formattedEventDate = '';
+                if (eventDateValue) {
+                    const eventDate = new Date(eventDateValue);
+                    const rocYear = eventDate.getFullYear() - 1911;
+                    const month = eventDate.getMonth() + 1;
+                    const day = eventDate.getDate();
+                    let hours = eventDate.getHours();
+                    const minutes = eventDate.getMinutes();
+                    const ampm = hours >= 12 ? '下午' : '上午';
+                    hours = hours % 12;
+                    hours = hours ? hours : 12; // the hour '0' should be '12'
+                    const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+                    formattedEventDate = `會議時間 : ${rocYear}年${month}月${day}日 ${ampm} ${hours}:${formattedMinutes}`;
                 }
 
-                saveUsers();
-                renderUserList();
-                resetAccountForm();
-            });
-            
-            userList.addEventListener('click', (e) => {
-                const target = e.target;
-                const id = target.dataset.id;
+
+                let printContent = '';
+                const residentsPerPage = 10;
                 
-                if (target.classList.contains('edit-btn')) {
-                    const user = users.find(u => u.id == id);
-                    if (user) {
-                        editUserIdInput.value = user.id;
-                        accountUsernameInput.value = user.username;
-                        accountPasswordInput.value = user.password;
-                        let suffix = user.redirectUrl;
-                        if(suffix.startsWith(URL_PREFIX)) {
-                           suffix = suffix.substring(URL_PREFIX.length);
+                // Helper function to format address for printing
+                function formatAddressForPrint(address) {
+                    if (!address) return '<br><br>'; // Return empty lines to maintain height
+                    let addr = address.trim();
+                    const parts = {
+                        road: '',
+                        numbers: '',
+                        floor: ''
+                    };
+
+                    const floorMatch = addr.match(/(.*?)(\d+樓.*)/);
+                    if (floorMatch) {
+                        addr = floorMatch[1].trim();
+                        parts.floor = floorMatch[2];
+                    }
+
+                    const roadMatch = addr.match(/(.*?([路街段]))(.*)/);
+                    if (roadMatch) {
+                        parts.road = roadMatch[1];
+                        parts.numbers = roadMatch[3].trim();
+                    } else {
+                        parts.numbers = addr;
+                    }
+                    
+                    return `${parts.road}<br>${parts.numbers}<br>${parts.floor}`;
+                }
+
+
+                const numPages = Math.ceil(allResidentsForSelectedEvent.length / residentsPerPage);
+                
+
+                for (let i = 0; i < numPages; i++) {
+                    const start = i * residentsPerPage;
+                    const end = start + residentsPerPage;
+                    const pageResidents = allResidentsForSelectedEvent.slice(start, end);
+
+                    printContent += `<div class="print-page">`;
+                    // Header
+                    printContent += `
+                        <div class="print-header">
+                            <h1>${communityName}</h1>
+                            <h2>${eventName} 出席名冊</h2>
+                            <p>${formattedEventDate}</p>
+                        </div>
+                    `;
+
+                    // Table
+                    printContent += `
+                        <table class="print-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 0.8cm;">序號</th>
+                                    <th style="width: 1.8cm;">QR Code</th>
+                                    <th style="width: 1.8cm;">戶號</th>
+                                    <th style="width: 1.8cm;">姓名</th>
+                                    <th style="width: 5.0cm;">地址</th>
+                                    <th style="width: 2.2cm;">簽到</th>
+                                    <th style="width: 1.8cm;">是否委<br>託出席</th>
+                                    <th style="width: 3.8cm;">委託關係</th>
+                                    <th style="width: 1.8cm;">出席費</th>
+                                    <th style="width: 2.2cm;">簽退</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    pageResidents.forEach((resident, index) => {
+                        const residentId = resident.id;
+                        printContent += `
+                            <tr>
+                                <td>${start + index + 1}</td>
+                                <td><div id="print-qr-${residentId}" style="width: 50px; height: 50px; margin: auto;"></div></td>
+                                <td>${resident.unit || ''}</td>
+                                <td style="word-break: break-all;">${resident.name || ''}</td>
+                                <td style="text-align: left; font-size: 8pt; line-height: 1.2;">${formatAddressForPrint(resident.address)}</td>
+                                <td></td>
+                                <td style="text-align: left; font-size: 8pt; line-height: 1.3;">
+                                    <div style="display: flex; align-items: center;"><span style="font-size: 1.2em; margin-right: 4px;">□</span>本人</div>
+                                    <div style="display: flex; align-items: center;"><span style="font-size: 1.2em; margin-right: 4px;">□</span>委託</div>
+                                </td>
+                                <td style="text-align: left; font-size: 8pt; line-height: 1.3;">
+                                    <div><span style="font-size: 1.2em; margin-right: 4px;">□</span>配偶</div>
+                                    <div><span style="font-size: 1.2em; margin-right: 4px;">□</span>有行為能力之直系血親</div>
+                                    <div><span style="font-size: 1.2em; margin-right: 4px;">□</span>其他區分所有權人</div>
+                                    <div><span style="font-size: 1.2em; margin-right: 4px;">□</span>承租人</div>
+                                </td>
+                                <td style="text-align: left; font-size: 8pt; line-height: 1.3;">
+                                     <div style="display: flex; align-items: center;"><span style="font-size: 1.2em; margin-right: 4px;">□</span>${attendanceFee} 元</div>
+                                </td>
+                                <td></td>
+                            </tr>
+                        `;
+                    });
+                    
+                    if(pageResidents.length < residentsPerPage) {
+                        for(let j=0; j < (residentsPerPage - pageResidents.length); j++){
+                            printContent += `
+                            <tr>
+                                <td>${start + pageResidents.length + j + 1}</td>
+                                <td></td><td></td><td></td><td></td>
+                                <td></td><td></td><td></td><td></td>
+                                <td></td>
+                            </tr>
+                            `;
                         }
-                        accountRedirectUrlInput.value = suffix;
-                        accountFormSubmitButton.textContent = '更新帳號';
-                        accountFormSubmitButton.classList.remove('bg-green-500', 'hover:bg-green-600');
-                        accountFormSubmitButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
-                        cancelEditButton.classList.remove('hidden');
-                        accountUsernameInput.focus();
                     }
-                } else if (target.classList.contains('delete-btn')) {
-                    if (confirm(`確定要刪除這個帳號嗎？`)) {
-                        users = users.filter(u => u.id != id);
-                        saveUsers();
-                        renderUserList();
-                        resetAccountForm();
-                        showSettingsMessage('帳號已刪除！');
+
+                    printContent += `
+                            </tbody>
+                        </table>
+                        <div class="print-footer" style="text-align: center; margin-top: 1rem; font-size: 10pt;">
+                            <p>第 ${i + 1} 頁，共 ${numPages} 頁</p>
+                            <p style="margin-top: 0.5rem;">西北保全&西北物業 製表</p>
+                        </div>
+                    </div>`; 
+                }
+
+                printArea.innerHTML = printContent;
+                
+                // Render QR Codes after they are in the DOM
+                for (let i = 0; i < allResidentsForSelectedEvent.length; i++) {
+                    const resident = allResidentsForSelectedEvent[i];
+                    const qrElement = document.getElementById(`print-qr-${resident.id}`);
+                    if (qrElement) {
+                        const qrValue = resident.qrcodeValue || resident.id;
+                        new QRCode(qrElement, {
+                            text: qrValue,
+                            width: 50,
+                            height: 50,
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
                     }
+                }
+
+                printArea.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    window.print();
+                    printArea.classList.add('hidden');
+                }, 500);
+            });
+
+            // --- CSV and Mass Delete ---
+            document.getElementById('export-csv-btn').addEventListener('click', () => {
+                if (allResidentsForSelectedEvent.length === 0) {
+                    showCustomModal({ title: '提醒', message: '沒有住戶資料可匯出。'});
+                    return;
+                }
+                const headers = ['qrcodeValue', 'unit', 'name', 'address', 'area', 'ownership'];
+                let csvContent = '\uFEFF' + headers.join(',') + '\n';
+                
+                allResidentsForSelectedEvent.forEach(resident => {
+                    const row = headers.map(header => `"${resident[header] || ''}"`);
+                    csvContent += row.join(',') + '\n';
+                });
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                const communityName = document.getElementById('community-name-display').textContent.trim();
+                const eventName = document.getElementById('event-title-display').textContent.trim();
+                link.setAttribute("download", `${communityName}_${eventName}_住戶列表.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+
+            const importCsvInput = document.getElementById('import-csv-input');
+            document.getElementById('import-csv-btn').addEventListener('click', () => importCsvInput.click());
+            importCsvInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const text = e.target.result;
+                    const rows = text.split('\n').filter(row => row.trim() !== '');
+                    if (rows.length < 2) {
+                        showCustomModal({ title: '錯誤', message: 'CSV檔案格式不符或沒有資料。'});
+                        return;
+                    }
+
+                    const headers = rows[0].trim().split(',').map(h => h.replace(/"/g, '').trim());
+                    const requiredHeaders = ['qrcodeValue', 'unit', 'name', 'ownership'];
+                    if (!requiredHeaders.every(h => headers.includes(h))) {
+                        showCustomModal({ title: '錯誤', message: `CSV標頭缺少必要欄位。必須包含: ${requiredHeaders.join(', ')}`});
+                        return;
+                    }
+
+                    showCustomModal({
+                        title: '確認匯入',
+                        message: `即將匯入 ${rows.length - 1} 筆資料，這將會新增至現有列表，確定嗎？`,
+                        type: 'confirm',
+                        onConfirm: async () => {
+                            showLoader();
+                            const batch = writeBatch(db);
+                            const importTimestamp = Date.now();
+                            for (let i = 1; i < rows.length; i++) {
+                                const values = rows[i].trim().split(',').map(v => v.replace(/"/g, ''));
+                                let residentData = {};
+                                headers.forEach((header, index) => {
+                                    residentData[header] = values[index] || '';
+                                });
+
+                                const newResidentRef = doc(collection(db, ...residentsCollectionPath(selectedEventId)));
+                                batch.set(newResidentRef, {
+                                    qrcodeValue: residentData.qrcodeValue || '',
+                                    unit: residentData.unit || '',
+                                    name: residentData.name || '',
+                                    address: residentData.address || '',
+                                    area: parseFloat(residentData.area) || 0,
+                                    ownership: parseFloat(residentData.ownership) || 0,
+                                    isCheckedIn: false,
+                                    checkInTimestamp: null,
+                                    createdAt: importTimestamp + i
+                                });
+                            }
+
+                            try {
+                                await batch.commit();
+                                showCustomModal({ title: '成功', message: `成功匯入 ${rows.length - 1} 筆住戶資料！`});
+                            } catch (error) {
+                                console.error("CSV import failed: ", error);
+                                showCustomModal({ title: '錯誤', message: '匯入失敗，請檢查CSV檔案格式與內容。'});
+                            } finally {
+                                hideLoader();
+                            }
+                        }
+                    });
+                };
+                reader.readAsText(file, "UTF-8");
+                importCsvInput.value = ''; // Reset input
+            });
+
+            document.getElementById('delete-all-residents-btn').addEventListener('click', async () => {
+                if (allResidentsForSelectedEvent.length === 0) {
+                    showCustomModal({ title: '提醒', message: '沒有住戶資料可刪除。'});
+                    return;
+                }
+                showCustomModal({
+                    title: '確認全部刪除',
+                    message: `您確定要刪除此活動的全部 ${allResidentsForSelectedEvent.length} 筆住戶資料嗎？此操作無法復原！`,
+                    type: 'confirm',
+                    onConfirm: async () => {
+                        showLoader();
+                        const batch = writeBatch(db);
+                        allResidentsForSelectedEvent.forEach(resident => {
+                            const residentRef = doc(db, ...residentDocPath(selectedEventId, resident.id));
+                            batch.delete(residentRef);
+                        });
+                        try {
+                            await batch.commit();
+                            showCustomModal({ title: '成功', message: '已成功刪除所有住戶。'});
+                        } catch (error) {
+                            console.error("Delete all residents failed: ", error);
+                            showCustomModal({ title: '錯誤', message: '刪除失敗，請再試一次。'});
+                        } finally {
+                            hideLoader();
+                        }
+                    }
+                });
+            });
+            
+            // --- Share Modal Logic ---
+            shareDashboardBtn.addEventListener('click', () => {
+                const url = `${window.location.origin}${window.location.pathname}?view=public&event=${selectedEventId}`;
+                shareQrCodeContainer.innerHTML = ''; // Clear previous QR Code
+                new QRCode(shareQrCodeContainer, {
+                    text: url,
+                    width: 256,
+                    height: 256,
+                });
+                shareLink.href = url;
+                shareUrlDisplay.textContent = url;
+                shareModal.classList.remove('hidden');
+            });
+
+            closeShareModalBtn.addEventListener('click', () => {
+                shareModal.classList.add('hidden');
+            });
+
+             shareModal.addEventListener('click', (e) => {
+                 if (e.target === shareModal) {
+                     shareModal.classList.add('hidden');
+                 }
+             });
+
+            // --- User Management Logic ---
+            addUserForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newUsername = document.getElementById('new-username').value;
+                const newPassword = document.getElementById('new-password').value;
+                const newUserRole = document.getElementById('new-user-role').value;
+
+                if(!newUsername || !newPassword){
+                    showCustomModal({ title: '提醒', message: '請填寫帳號和密碼。'});
+                    return;
+                }
+                if(newPassword.length < 6){
+                    showCustomModal({ title: '提醒', message: '密碼長度至少需要6個字元。'});
+                    return;
+                }
+                
+                showLoader();
+                try {
+                    // This is a workaround to create a new user without logging the current admin out.
+                    // It creates a temporary, secondary Firebase app instance just for this operation.
+                    const tempApp = initializeApp(firebaseConfig, `temp-app-for-user-creation-${Date.now()}`);
+                    const tempAuth = getAuth(tempApp);
+                    
+                    const email = `${newUsername}@qrsystem.app`;
+                    const userCredential = await createUserWithEmailAndPassword(tempAuth, email, newPassword);
+                    const userRef = doc(db, 'users', userCredential.user.uid);
+                    await setDoc(userRef, {
+                        username: newUsername,
+                        email: email,
+                        role: newUserRole
+                    });
+                    showCustomModal({ title: '成功', message: `帳號 ${newUsername} 建立成功！`});
+                    addUserForm.reset();
+                } catch (error) {
+                    console.error("Error creating user:", error);
+                    if(error.code === 'auth/email-already-in-use'){
+                        showCustomModal({ title: '錯誤', message: '此帳號名稱已被使用。'});
+                    } else {
+                        showCustomModal({ title: '錯誤', message: `建立帳號時發生錯誤： ${error.message}`});
+                    }
+                } finally {
+                    hideLoader();
                 }
             });
 
-            cancelEditButton.addEventListener('click', resetAccountForm);
-
-            function resetAccountForm() {
-                accountForm.reset();
-                editUserIdInput.value = '';
-                accountFormSubmitButton.textContent = '新增帳號';
-                accountFormSubmitButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
-                accountFormSubmitButton.classList.add('bg-green-500', 'hover:bg-green-600');
-                cancelEditButton.classList.add('hidden');
+            function listenToUsers() {
+                 const q = query(collection(db, ...usersCollectionPath()));
+                 return onSnapshot(q, (snapshot) => {
+                      const userListTbody = document.getElementById('users-list');
+                      userListTbody.innerHTML = '';
+                      snapshot.forEach(doc => {
+                          const userData = doc.data();
+                          // Do not display the currently logged-in admin in the list
+                          if(doc.id === currentUser.uid) return;
+                          
+                          const tr = document.createElement('tr');
+                          tr.innerHTML = `
+                               <td class="px-2 py-2 whitespace-nowrap">${userData.username}</td>
+                               <td class="px-2 py-2 whitespace-nowrap">${userData.role}</td>
+                               <td class="px-2 py-2 whitespace-nowrap text-sm font-medium">
+                                   <button data-id="${doc.id}" class="change-role-btn text-blue-600 hover:text-blue-900">變更角色</button>
+                                   <button data-id="${doc.id}" class="delete-user-btn text-red-600 hover:text-red-900 ml-2">刪除</button>
+                               </td>
+                          `;
+                          userListTbody.appendChild(tr);
+                      });
+                 });
             }
 
-            function showSettingsMessage(message, type = 'success') {
-                settingsMessage.textContent = message;
-                settingsMessage.className = `mb-2 text-center font-medium h-5 ${type === 'error' ? 'text-red-500' : 'text-green-600'}`;
-                setTimeout(() => { settingsMessage.textContent = ''; }, 3000);
-            }
+            document.getElementById('users-list').addEventListener('click', async (e) => {
+                const target = e.target;
+                const userId = target.dataset.id;
+                
+                if (target.classList.contains('delete-user-btn')) {
+                    showCustomModal({
+                        title: '確認刪除帳號',
+                        message: '您確定要刪除這個帳號嗎？此操作僅會移除系統內的資料，您可能需要手動從 Firebase Authentication 主控台刪除使用者以釋放 email。',
+                        type: 'confirm',
+                        onConfirm: async () => {
+                            showLoader();
+                            try {
+                               await deleteDoc(doc(db, ...userDocPath(userId)));
+                               showCustomModal({ title: '成功', message: '使用者資料已刪除。'});
+                            } catch(error) {
+                                console.error("Error deleting user doc:", error);
+                                showCustomModal({ title: '錯誤', message: '刪除使用者資料失敗。'});
+                            } finally {
+                                hideLoader();
+                            }
+                        }
+                    });
+                }
+
+                if (target.classList.contains('change-role-btn')) {
+                    const userDocRef = doc(db, ...userDocPath(userId));
+                    const userDocSnap = await getDoc(userDocRef);
+                    if (!userDocSnap.exists()) return;
+                    const currentRole = userDocSnap.data().role;
+
+                    const roleOptions = ['system_admin', 'senior_manager', 'junior_manager', 'staff']
+                        .map(role => `<option value="${role}" ${role === currentRole ? 'selected' : ''}>${role}</option>`)
+                        .join('');
+
+                    const htmlContent = `
+                        <p class="mb-4 text-sm text-gray-600">請為此帳號選擇一個新的角色：</p>
+                        <select id="role-select" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                            ${roleOptions}
+                        </select>
+                    `;
+
+                    showCustomModal({
+                        title: '變更角色',
+                        htmlContent: htmlContent,
+                        type: 'confirm',
+                        onConfirm: async () => {
+                            const newRole = document.getElementById('role-select').value;
+                            if (newRole && newRole !== currentRole) {
+                                showLoader();
+                                try {
+                                    await updateDoc(userDocRef, { role: newRole });
+                                    showCustomModal({ title: '成功', message: '角色已更新！' });
+                                } catch (error) {
+                                    console.error("Error updating role:", error);
+                                    showCustomModal({ title: '錯誤', message: '更新角色失敗。' });
+                                } finally {
+                                    hideLoader();
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        function initializeAppPublic(eventId) {
+            document.body.classList.remove('bg-red-600');
+            document.body.classList.add('bg-gray-100');
             
-            function escapeHTML(str) {
-                const p = document.createElement('p');
-                p.textContent = str;
-                return p.innerHTML;
+            const appContainer = document.getElementById('app');
+            const publicView = document.getElementById('public-dashboard-view');
+            appContainer.style.display = 'none';
+            publicView.classList.remove('hidden');
+
+            const publicCommunityName = document.getElementById('public-community-name-display');
+            const publicEventTitle = document.getElementById('public-event-title-display');
+            const publicDashboardContent = document.getElementById('public-dashboard-content');
+
+            const eventRef = doc(db, ...eventDocPath(eventId));
+            onSnapshot(eventRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    publicCommunityName.textContent = data.communityName || '社群名稱';
+                    publicEventTitle.textContent = data.eventName || '活動報表';
+                    const residentsColRef = collection(db, ...residentsCollectionPath(eventId));
+                    onSnapshot(residentsColRef, (residentsSnapshot) => {
+                        const residents = [];
+                        residentsSnapshot.forEach(doc => residents.push(doc.data()));
+                        renderPublicDashboard(data, residents);
+                    });
+                } else {
+                    publicCommunityName.textContent = '找不到活動';
+                }
+            });
+
+            function renderPublicDashboard(eventData, residentsData) {
+                let checkedInCount = 0;
+                let checkedInOwnership = 0;
+
+                residentsData.forEach(r => {
+                    if (r.isCheckedIn) {
+                        checkedInCount++;
+                        checkedInOwnership += parseFloat(r.ownership) || 0;
+                    }
+                });
+                
+                const personRate = residentsData.length > 0 ? parseFloat(((checkedInCount / residentsData.length) * 100).toFixed(1)) : 0;
+                const ownershipRate = parseFloat(checkedInOwnership.toFixed(4));
+                
+                const personQuorumRatio = parseFloat(eventData.personRatio) || 0;
+                const ownershipQuorumRatio = parseFloat(eventData.ownershipRatio) || 0;
+
+                const personQuorumReached = personQuorumRatio > 0 && personRate >= personQuorumRatio;
+                const ownershipQuorumReached = ownershipQuorumRatio > 0 && ownershipRate >= ownershipQuorumRatio;
+
+                publicDashboardContent.innerHTML = `
+                    <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                         <div>
+                             <p class="text-sm font-medium text-gray-500">總住戶數</p>
+                             <p class="text-3xl font-bold text-red-600">${residentsData.length}</p>
+                         </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">已報到人數</p>
+                            <p class="text-3xl font-bold text-green-600">${checkedInCount}</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">人數報到率 <span class="text-xs">(目標: ${personQuorumRatio}%)</span></p>
+                            <p class="text-3xl font-bold text-orange-600">${personRate}%</p>
+                        </div>
+                        <span class="${personQuorumReached ? '' : 'hidden'} text-green-600 font-bold text-lg">已達法定開會人數</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">區分權報到率 <span class="text-xs">(目標: ${ownershipQuorumRatio}%)</span></p>
+                            <p class="text-3xl font-bold text-blue-600">${ownershipRate}%</p>
+                        </div>
+                        <span class="${ownershipQuorumReached ? '' : 'hidden'} text-green-600 font-bold text-lg">已達法定開會區分權比例</span>
+                    </div>
+                `;
             }
-            
-            // 初始化
-            loadCommunityName();
-            loadRememberedUser();
-        });
+        }
     </script>
 </body>
 </html>
