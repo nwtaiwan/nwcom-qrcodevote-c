@@ -270,7 +270,8 @@
                                 <input type="file" id="import-csv-input" class="hidden" accept=".csv">
                                 <button id="import-csv-btn" class="bg-green-500 text-white px-3 py-2 rounded-md hover:bg-green-600 text-sm font-semibold">匯入CSV</button>
                                 <button id="delete-all-residents-btn" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 text-sm font-semibold">全部刪除</button>
-                                <button id="print-roster-btn" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 text-sm font-semibold">列印出席名冊</button>
+                                <button id="print-roster-individual-btn" class="bg-indigo-500 text-white px-3 py-2 rounded-md hover:bg-indigo-600 text-sm font-semibold">列印出席名冊(個人戶)</button>
+                                <button id="print-roster-btn" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 text-sm font-semibold">列印出席名冊(10戶/頁)</button>
                             </div>
                         </div>
                         <div class="overflow-auto max-h-[70vh]">
@@ -1418,64 +1419,7 @@
             }
             
             // --- Reset, Delete, and Print ---
-            async function deleteEventAndSubcollection(eventId) {
-                if (!eventId) return;
-                const residentsColRef = collection(db, ...residentsCollectionPath(eventId));
-                const residentsSnapshot = await getDocs(residentsColRef);
-                if (!residentsSnapshot.empty) {
-                    const batch = writeBatch(db);
-                    residentsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-                    await batch.commit();
-                }
-                await deleteDoc(doc(db, ...eventDocPath(eventId)));
-            }
-
-            document.getElementById('reset-checkin-btn').addEventListener('click', async () => {
-                if (await showCustomConfirm('您確定要重設此活動所有住戶的報到紀錄嗎？此操作無法復原！')) {
-                    const residentsToCheck = allResidentsForSelectedEvent.filter(r => r.isCheckedIn);
-                    if(residentsToCheck.length > 0) {
-                        showLoader();
-                        const batch = writeBatch(db);
-                        residentsToCheck.forEach(resident => {
-                            const residentRef = doc(db, ...residentDocPath(selectedEventId, resident.id));
-                            batch.update(residentRef, { isCheckedIn: false, checkInTimestamp: null, checkInMethod: null, checkInBy: null });
-                        });
-                        await batch.commit();
-                        hideLoader();
-                        showCustomAlert('所有報到紀錄已成功重設！');
-                    } else {
-                        showCustomAlert('目前沒有任何報到紀錄可重設。');
-                    }
-                }
-            });
-
-            document.getElementById('delete-event-btn').addEventListener('click', async () => {
-                const eventRef = doc(db, ...eventDocPath(selectedEventId));
-                const eventSnap = await getDoc(eventRef);
-                if (eventSnap.exists()) {
-                    const eventData = eventSnap.data();
-                    if (eventData.creatorId && eventData.creatorId !== currentUser.uid) {
-                        showCustomAlert('權限不足！只有建立者才能刪除此活動。');
-                        return;
-                    }
-                }
-
-                if (await showCustomConfirm('您確定要刪除整個活動嗎？包含所有住戶資料和報到紀錄，此操作無法復原！')) {
-                    showLoader();
-                    try {
-                        await deleteEventAndSubcollection(selectedEventId);
-                        showCustomAlert('活動已刪除！');
-                        showEventSelectionView();
-                    } catch (error) {
-                        console.error("Error deleting event from settings:", error);
-                        showCustomAlert("刪除活動失敗。");
-                    } finally {
-                        hideLoader();
-                    }
-                }
-            });
-
-            document.getElementById('print-roster-btn').addEventListener('click', () => {
+            function generateAndPrintRoster(residentsPerPage) {
                 const printArea = document.getElementById('print-area');
                 const communityName = document.getElementById('community-name-display').textContent;
                 const eventName = document.getElementById('event-title-display').textContent;
@@ -1499,7 +1443,6 @@
 
 
                 let printContent = '';
-                const residentsPerPage = 10;
                 
                 if (allResidentsForSelectedEvent.length === 0) {
                     showCustomAlert('沒有住戶資料可列印。');
@@ -1652,6 +1595,70 @@
                     window.print();
                     printArea.classList.add('hidden');
                 }, 500);
+            }
+
+            async function deleteEventAndSubcollection(eventId) {
+                if (!eventId) return;
+                const residentsColRef = collection(db, ...residentsCollectionPath(eventId));
+                const residentsSnapshot = await getDocs(residentsColRef);
+                if (!residentsSnapshot.empty) {
+                    const batch = writeBatch(db);
+                    residentsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                }
+                await deleteDoc(doc(db, ...eventDocPath(eventId)));
+            }
+            
+            document.getElementById('print-roster-btn').addEventListener('click', () => {
+                generateAndPrintRoster(10);
+            });
+            document.getElementById('print-roster-individual-btn').addEventListener('click', () => {
+                generateAndPrintRoster(1);
+            });
+
+            document.getElementById('reset-checkin-btn').addEventListener('click', async () => {
+                if (await showCustomConfirm('您確定要重設此活動所有住戶的報到紀錄嗎？此操作無法復原！')) {
+                    const residentsToCheck = allResidentsForSelectedEvent.filter(r => r.isCheckedIn);
+                    if(residentsToCheck.length > 0) {
+                        showLoader();
+                        const batch = writeBatch(db);
+                        residentsToCheck.forEach(resident => {
+                            const residentRef = doc(db, ...residentDocPath(selectedEventId, resident.id));
+                            batch.update(residentRef, { isCheckedIn: false, checkInTimestamp: null, checkInMethod: null, checkInBy: null });
+                        });
+                        await batch.commit();
+                        hideLoader();
+                        showCustomAlert('所有報到紀錄已成功重設！');
+                    } else {
+                        showCustomAlert('目前沒有任何報到紀錄可重設。');
+                    }
+                }
+            });
+
+            document.getElementById('delete-event-btn').addEventListener('click', async () => {
+                const eventRef = doc(db, ...eventDocPath(selectedEventId));
+                const eventSnap = await getDoc(eventRef);
+                if (eventSnap.exists()) {
+                    const eventData = eventSnap.data();
+                    if (eventData.creatorId && eventData.creatorId !== currentUser.uid) {
+                        showCustomAlert('權限不足！只有建立者才能刪除此活動。');
+                        return;
+                    }
+                }
+
+                if (await showCustomConfirm('您確定要刪除整個活動嗎？包含所有住戶資料和報到紀錄，此操作無法復原！')) {
+                    showLoader();
+                    try {
+                        await deleteEventAndSubcollection(selectedEventId);
+                        showCustomAlert('活動已刪除！');
+                        showEventSelectionView();
+                    } catch (error) {
+                        console.error("Error deleting event from settings:", error);
+                        showCustomAlert("刪除活動失敗。");
+                    } finally {
+                        hideLoader();
+                    }
+                }
             });
 
             // --- CSV and Mass Delete ---
