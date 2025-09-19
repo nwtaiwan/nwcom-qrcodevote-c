@@ -271,22 +271,23 @@
                                 <button id="import-csv-btn" class="bg-green-500 text-white px-3 py-2 rounded-md hover:bg-green-600 text-sm font-semibold">匯入CSV</button>
                                 <button id="delete-all-residents-btn" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 text-sm font-semibold">全部刪除</button>
                                 <button id="print-roster-individual-btn" class="bg-indigo-500 text-white px-3 py-2 rounded-md hover:bg-indigo-600 text-sm font-semibold">列印出席名冊(個人戶)</button>
-                                <button id="print-roster-btn" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 text-sm font-semibold">列印出席名冊(10戶/頁)</button>
+                                <button id="print-roster-multi-btn" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 text-sm font-semibold">列印出席名冊(<span id="roster-per-page-display">10</span>戶/頁)</button>
                             </div>
                         </div>
                         <div class="overflow-auto max-h-[70vh]">
-                            <table class="min-w-full divide-y divide-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200" style="table-layout: fixed;">
                                 <thead class="bg-gray-50 sticky top-0">
                                     <tr>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QR Code碼</th>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">戶號</th>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">住址</th>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">坪數</th>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">區分權(%)</th>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QR Code</th>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 5%;">狀態</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 5%;">序號</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">QR Code碼</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">戶號</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">姓名</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 20%;">住址</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 8%;">坪數</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">區分權(%)</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 7%;">QR Code</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="residents-list" class="bg-white divide-y divide-gray-200"></tbody>
@@ -365,6 +366,10 @@
                             <div class="mb-6">
                                 <label for="attendance-fee" class="block text-sm font-medium text-gray-700">出席費內容</label>
                                 <textarea id="attendance-fee" rows="3" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：□ 500元&#10;□ 300元"></textarea>
+                            </div>
+                             <div class="mb-4">
+                                <label for="residents-per-page" class="block text-sm font-medium text-gray-700">每頁列印戶數 (多戶名冊)</label>
+                                <input type="number" id="residents-per-page" min="1" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="預設: 10">
                             </div>
                              <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700">儲存設定</button>
                         </form>
@@ -589,6 +594,7 @@
         let unsubscribeSession = () => {};
         let currentQuorumRatio = 0;
         let currentPersonQuorumRatio = 0;
+        let currentResidentsPerPage = 10;
 
         // --- Firestore Paths ---
         const eventsCollectionPath = () => ["events"];
@@ -1020,6 +1026,7 @@
                         attendanceFeeLabel: '出席費',
                         attendanceFee: '□ 500元\n□ 300元',
                         correctionDate: correctionDateValue,
+                        residentsPerPage: 10,
                         createdAt: serverTimestamp(),
                         creatorId: currentUser.uid,
                         creatorName: currentUser.name
@@ -1087,8 +1094,12 @@
                         document.getElementById('correction-date').value = data.correctionDate || '';
                         document.getElementById('attendance-fee-label').value = data.attendanceFeeLabel || '出席費';
                         document.getElementById('attendance-fee').value = data.attendanceFee || '□ 500元\n□ 300元';
+                        document.getElementById('residents-per-page').value = data.residentsPerPage || 10;
                         currentQuorumRatio = parseFloat(data.ownershipRatio) || 0;
                         currentPersonQuorumRatio = parseFloat(data.personRatio) || 0;
+                        currentResidentsPerPage = parseInt(data.residentsPerPage, 10) || 10;
+                        
+                        document.getElementById('roster-per-page-display').textContent = currentResidentsPerPage;
 
                         document.getElementById('community-name-display').textContent = data.communityName || '請先設定社區名稱';
                         document.getElementById('event-title-display').textContent = data.eventName || 'QR Code 報到系統';
@@ -1112,6 +1123,7 @@
                         correctionDate: document.getElementById('correction-date').value,
                         attendanceFeeLabel: document.getElementById('attendance-fee-label').value,
                         attendanceFee: document.getElementById('attendance-fee').value,
+                        residentsPerPage: parseInt(document.getElementById('residents-per-page').value, 10) || 10,
                     });
                     showCustomAlert('設定已儲存！');
                 } catch (error) {
@@ -1202,7 +1214,7 @@
                     // Sort by creation time to respect CSV import order
                     allResidentsForSelectedEvent.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
                     
-                    allResidentsForSelectedEvent.forEach(resident => {
+                    allResidentsForSelectedEvent.forEach((resident, index) => {
                         const tr = document.createElement('tr');
                         tr.className = resident.isCheckedIn ? 'checked-in-row' : '';
                         
@@ -1211,11 +1223,12 @@
                         const qrValue = resident.qrcodeValue || resident.id;
 
                         tr.innerHTML = `
-                            <td class="px-2 py-2 whitespace-nowrap text-center"><span class="inline-block h-4 w-4 rounded-full ${resident.isCheckedIn ? 'bg-green-500' : 'bg-gray-300'}"></span></td>
-                            <td class="px-2 py-2 whitespace-nowrap">${resident.qrcodeValue || ''}</td>
-                            <td class="px-2 py-2 whitespace-nowrap">${resident.unit}</td>
-                            <td class="px-2 py-2 whitespace-nowrap">${resident.name}</td>
-                            <td class="px-2 py-2 whitespace-nowrap">${resident.address || ''}</td>
+                            <td class="px-2 py-2 whitespace-nowrap text-center">${resident.isCheckedIn ? '✔️' : '❌'}</td>
+                            <td class="px-2 py-2 whitespace-nowrap text-center">${index + 1}</td>
+                            <td class="px-2 py-2 whitespace-nowrap truncate">${resident.qrcodeValue || ''}</td>
+                            <td class="px-2 py-2 whitespace-nowrap truncate">${resident.unit}</td>
+                            <td class="px-2 py-2 whitespace-nowrap truncate">${resident.name}</td>
+                            <td class="px-2 py-2 whitespace-nowrap truncate">${resident.address || ''}</td>
                             <td class="px-2 py-2 whitespace-nowrap">${resident.area || 0}</td>
                             <td class="px-2 py-2 whitespace-nowrap">${resident.ownership || 0}%</td>
                             <td class="px-2 py-2"><div id="qr-${resident.id}" class="mx-auto"></div></td>
@@ -1230,7 +1243,7 @@
                     });
 
                     if (allResidentsForSelectedEvent.length === 0) {
-                        residentsListTbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">請新增住戶</td></tr>`;
+                        residentsListTbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-gray-500">請新增住戶</td></tr>`;
                     }
 
                     updateDashboardCalculations();
@@ -1442,7 +1455,7 @@
             }
             
             // --- Reset, Delete, and Print ---
-            function generateAndPrintRoster(residentsPerPage) {
+            function generateAndPrintRoster(residentsPerPage, onComplete) {
                 const printArea = document.getElementById('print-area');
                 const communityName = document.getElementById('community-name-display').textContent;
                 const eventName = document.getElementById('event-title-display').textContent;
@@ -1471,6 +1484,7 @@
                 
                 if (allResidentsForSelectedEvent.length === 0) {
                     showCustomAlert('沒有住戶資料可列印。');
+                    if(onComplete) onComplete();
                     return;
                 }
                 
@@ -1613,18 +1627,18 @@
                         const proxyText = `
                             <div style="text-align: left; font-size: 12pt; line-height: 2.2; padding: 5px;">
                                 <h3 style="text-align: center; font-size: 16pt; font-weight: bold; margin: 7px 0;">會議出席委託書</h3>
-                                致 ${communityName} 社區：預定於 ${meetingDateStr}舉行之 ${eventName}，<br>
+                                致  ${communityName} ：預定於 ${meetingDateStr}舉行之 ${eventName}，<br>
                                 本人謹委託 ____________________ 先生（女士）代表出席區分所有權人會議，並於區分所有權人會議<br>
                                 中行使各項本人應有之權利與義務，區分所有標的物標示地址如上。<br><br>
-                                區權人 姓名：________________（簽章） 委託人 連絡電話：____________________<br>
+                                區分所有權人 姓名：________________（簽章） 區分所有權人 連絡電話：____________________<br>
                                 受委託人 姓名：________________（簽章） 受委託人 連絡電話：____________________<br>
-                                受委託人 地址：________________________________________________<br><br>
-                                依公寓大廈理條例規定，受委託人需具備以下四種任一身份，請自行勾選，如有不實責任自負<br>
+                                受委託人 地址：________________________________________________________<br><br>
+                                依公寓大廈管理條例規定，受委託人需具備以下四種任一身份，請自行勾選，如有不實責任自負<br>
                                 □ 配偶 □ 有行為能力之直系血親 □ 其他區分所有權人 □ 承租人<br><br>
                                 <strong>注意事項:</strong><br>
                                 1.為便於日後向主管機關核備作業，請區權人及受委託人務必簽名或蓋章。<br>
                                 2.區權人資料如有錯誤或遺失時，請於 ${correctionDateStr} 前至管理服務中心更正及申請補發，管理<br>
-                                服務中心將於會議前一天投進區權人信箱。<br><br>
+                                服務中心將於會議前一天投進區分所有權人信箱。<br><br>
                                 <div style="text-align: center; width: 100%;">${todayDateStr}</div>
                             </div>
                         `;
@@ -1674,6 +1688,7 @@
                 setTimeout(() => {
                     window.print();
                     printArea.classList.add('hidden');
+                    if (onComplete) onComplete();
                 }, 500);
             }
 
@@ -1689,11 +1704,13 @@
                 await deleteDoc(doc(db, ...eventDocPath(eventId)));
             }
             
-            document.getElementById('print-roster-btn').addEventListener('click', () => {
-                generateAndPrintRoster(10);
+            document.getElementById('print-roster-multi-btn').addEventListener('click', () => {
+                showLoader();
+                generateAndPrintRoster(currentResidentsPerPage || 10, hideLoader);
             });
             document.getElementById('print-roster-individual-btn').addEventListener('click', () => {
-                generateAndPrintRoster(1);
+                showLoader();
+                generateAndPrintRoster(1, hideLoader);
             });
 
             document.getElementById('reset-checkin-btn').addEventListener('click', async () => {
