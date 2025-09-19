@@ -346,6 +346,10 @@
                                  <label for="event-date" class="block text-sm font-medium text-gray-700">活動日期與時間</label>
                                  <input type="datetime-local" id="event-date" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
                              </div>
+                            <div class="mb-4">
+                                <label for="correction-date" class="block text-sm font-medium text-gray-700">補發更正截止日期</label>
+                                <input type="date" id="correction-date" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                            </div>
                              <div class="mb-6">
                                 <label for="person-ratio" class="block text-sm font-medium text-gray-700">法定開會人數比例 (%)</label>
                                 <input type="number" id="person-ratio" step="1" min="0" max="100" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：50">
@@ -354,9 +358,13 @@
                                 <label for="ownership-ratio" class="block text-sm font-medium text-gray-700">法定開會區分權比例 (%)</label>
                                 <input type="number" id="ownership-ratio" step="0.01" min="0" max="100" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：66.67">
                             </div>
+                             <div class="mb-4">
+                                <label for="attendance-fee-label" class="block text-sm font-medium text-gray-700">出席費欄位標題</label>
+                                <input type="text" id="attendance-fee-label" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：出席費">
+                            </div>
                             <div class="mb-6">
-                                <label for="attendance-fee" class="block text-sm font-medium text-gray-700">出席費</label>
-                                <textarea id="attendance-fee" rows="3" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：出席禮券 乙張&#10;或&#10;車馬費 500元"></textarea>
+                                <label for="attendance-fee" class="block text-sm font-medium text-gray-700">出席費內容</label>
+                                <textarea id="attendance-fee" rows="3" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：□ 500元&#10;□ 300元"></textarea>
                             </div>
                              <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700">儲存設定</button>
                         </form>
@@ -994,13 +1002,24 @@
                     return;
                 }
                 showLoader();
+
+                let correctionDateValue = '';
+                if (eventDate) {
+                    const d = new Date(eventDate);
+                    d.setDate(d.getDate() - 4);
+                    correctionDateValue = d.toISOString().split('T')[0];
+                }
+
                 try {
                     await addDoc(collection(db, ...eventsCollectionPath()), {
                         communityName,
                         eventName,
                         eventDate,
-                        ownershipRatio: 66.67, // Default value
-                        personRatio: 50, // Default value
+                        ownershipRatio: 66.67,
+                        personRatio: 50,
+                        attendanceFeeLabel: '出席費',
+                        attendanceFee: '□ 500元\n□ 300元',
+                        correctionDate: correctionDateValue,
                         createdAt: serverTimestamp(),
                         creatorId: currentUser.uid,
                         creatorName: currentUser.name
@@ -1065,7 +1084,9 @@
                         document.getElementById('event-date').value = data.eventDate || '';
                         document.getElementById('ownership-ratio').value = data.ownershipRatio || '';
                         document.getElementById('person-ratio').value = data.personRatio || '';
-                        document.getElementById('attendance-fee').value = data.attendanceFee || '';
+                        document.getElementById('correction-date').value = data.correctionDate || '';
+                        document.getElementById('attendance-fee-label').value = data.attendanceFeeLabel || '出席費';
+                        document.getElementById('attendance-fee').value = data.attendanceFee || '□ 500元\n□ 300元';
                         currentQuorumRatio = parseFloat(data.ownershipRatio) || 0;
                         currentPersonQuorumRatio = parseFloat(data.personRatio) || 0;
 
@@ -1088,6 +1109,8 @@
                         eventDate: document.getElementById('event-date').value,
                         ownershipRatio: document.getElementById('ownership-ratio').value,
                         personRatio: document.getElementById('person-ratio').value,
+                        correctionDate: document.getElementById('correction-date').value,
+                        attendanceFeeLabel: document.getElementById('attendance-fee-label').value,
                         attendanceFee: document.getElementById('attendance-fee').value,
                     });
                     showCustomAlert('設定已儲存！');
@@ -1424,7 +1447,9 @@
                 const communityName = document.getElementById('community-name-display').textContent;
                 const eventName = document.getElementById('event-title-display').textContent;
                 const eventDateValue = document.getElementById('event-date').value;
+                const attendanceFeeLabel = document.getElementById('attendance-fee-label').value || '出席費';
                 const attendanceFee = (document.getElementById('attendance-fee').value || '_____').replace(/\n/g, '<br>');
+                const correctionDateValue = document.getElementById('correction-date').value;
                 
                 let formattedEventDate = '';
                 if (eventDateValue) {
@@ -1512,7 +1537,7 @@
                                     <th style="width: 1.8cm;">簽到</th>
                                     <th style="width: 1.8cm;">是否委<br>託出席</th>
                                     <th style="width: 3.8cm;">委託關係</th>
-                                    <th style="width: 1.8cm;">出席費</th>
+                                    <th style="width: 1.8cm;">${attendanceFeeLabel}</th>
                                     <th style="width: 1.8cm;">簽退</th>
                                 </tr>
                             </thead>
@@ -1564,7 +1589,7 @@
 
                     if (residentsPerPage === 1) {
                         let meetingDateStr = '';
-                        let correctionDateStr = '';
+                        let correctionDateStr = '____ 年 __ 月 __ 日';
 
                         if (eventDateValue) {
                             const eventDate = new Date(eventDateValue);
@@ -1572,30 +1597,28 @@
                             const month = eventDate.getMonth() + 1;
                             const day = eventDate.getDate();
                             meetingDateStr = `${rocYear} 年 ${month} 月 ${day} 日`;
-
-                            const correctionDate = new Date(eventDate);
-                            correctionDate.setDate(eventDate.getDate() - 4);
-                            const corrRocYear = correctionDate.getFullYear() - 1911;
-                            const corrMonth = correctionDate.getMonth() + 1;
-                            const corrDay = correctionDate.getDate();
-                            correctionDateStr = `${corrRocYear} 年 ${corrMonth} 月 ${corrDay} 日`;
+                        }
+                        
+                        if (correctionDateValue) {
+                            const d = new Date(correctionDateValue);
+                            const rocYear = d.getFullYear() - 1911;
+                            const month = d.getMonth() + 1;
+                            const day = d.getDate();
+                            correctionDateStr = `${rocYear} 年 ${month} 月 ${day} 日`;
                         }
 
-                        const today = new Date();
-                        const todayRocYear = today.getFullYear() - 1911;
-                        const todayMonth = today.getMonth() + 1;
-                        const todayDay = today.getDate();
-                        const todayDateStr = `中 華 民 國 ${todayRocYear} 年 ${todayMonth} 月 ${todayDay} 日`;
+
+                        const todayDateStr = `中 華 民 國&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;年&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;月&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;日`;
                         
                         const proxyText = `
-                            <div style="text-align: left; font-size: 12pt; line-height: 2.4; padding: 5px;">
+                            <div style="text-align: left; font-size: 12pt; line-height: 2.2; padding: 5px;">
                                 <h3 style="text-align: center; font-size: 16pt; font-weight: bold; margin: 7px 0;">會議出席委託書</h3>
                                 致 ${communityName} 社區：預定於 ${meetingDateStr}舉行之 ${eventName}，<br>
                                 本人謹委託 ____________________ 先生（女士）代表出席區分所有權人會議，並於區分所有權人會議<br>
                                 中行使各項本人應有之權利與義務，區分所有標的物標示地址如上。<br><br>
                                 區權人 姓名：________________（簽章） 委託人 連絡電話：____________________<br>
                                 受委託人 姓名：________________（簽章） 受委託人 連絡電話：____________________<br>
-                                受委託人 地址： 泉源路 _______ 號 _______ 樓之 _______<br><br>
+                                受委託人 地址：________________________________________________<br><br>
                                 依公寓大廈理條例規定，受委託人需具備以下四種任一身份，請自行勾選，如有不實責任自負<br>
                                 □ 配偶 □ 有行為能力之直系血親 □ 其他區分所有權人 □ 承租人<br><br>
                                 <strong>注意事項:</strong><br>
