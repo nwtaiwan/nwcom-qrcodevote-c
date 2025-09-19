@@ -160,8 +160,14 @@
                 <div class="flex items-center space-x-4 mt-4 sm:mt-0">
                     <button id="create-event-btn" class="bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700">新增會議活動</button>
                     <button id="user-management-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600">帳號管理</button>
-                    <span id="user-display" class="text-sm text-gray-500"></span>
-                    <button id="logout-btn-events" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 text-sm font-semibold">登出</button>
+                    <div class="text-right">
+                        <h2 class="font-bold text-gray-800">西北社區QR Code投票系統</h2>
+                        <p class="text-xs text-gray-500">西北好用心  生活更安心</p>
+                        <div class="mt-1">
+                             <span id="user-display" class="text-sm text-gray-500"></span>
+                             <button id="logout-btn-events" class="bg-gray-500 text-white px-3 py-1 rounded-md hover:bg-gray-600 text-xs font-semibold ml-2">登出</button>
+                        </div>
+                    </div>
                 </div>
             </header>
             <div id="events-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -183,9 +189,13 @@
                     <h1 id="community-name-display" class="text-2xl font-bold text-red-700">載入中...</h1>
                     <p id="event-title-display" class="text-2xl text-gray-800 mt-1">QR Code 報到系統</p>
                 </div>
-                <div class="flex items-center space-x-4 mt-4 sm:mt-0">
-                    <span id="user-display-details" class="text-sm text-gray-500"></span>
-                    <button id="logout-btn-details" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm font-semibold">登出</button>
+                <div class="text-right">
+                    <h2 class="font-bold text-gray-800">西北社區QR Code投票系統</h2>
+                    <p class="text-xs text-gray-500">西北好用心  生活更安心</p>
+                    <div class="mt-1">
+                        <span id="user-display-details" class="text-sm text-gray-500"></span>
+                        <button id="logout-btn-details" class="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600 text-xs font-semibold ml-2">登出</button>
+                    </div>
                 </div>
             </header>
 
@@ -206,7 +216,7 @@
                     <div class="flex justify-end mb-4">
                         <button id="share-dashboard-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-600 flex items-center">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
-                            分享儀表板
+                            分享
                         </button>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -361,11 +371,11 @@
                                 <input type="number" id="ownership-ratio" step="0.01" min="0" max="100" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：66.67">
                             </div>
                              <div class="mb-4">
-                                <label for="attendance-fee-label" class="block text-sm font-medium text-gray-700">出席費欄位標題</label>
+                                <label for="attendance-fee-label" class="block text-sm font-medium text-gray-700">備用欄位標題</label>
                                 <input type="text" id="attendance-fee-label" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：出席費">
                             </div>
                             <div class="mb-6">
-                                <label for="attendance-fee" class="block text-sm font-medium text-gray-700">出席費內容</label>
+                                <label for="attendance-fee" class="block text-sm font-medium text-gray-700">備用內容</label>
                                 <textarea id="attendance-fee" rows="3" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：□ 500元&#10;□ 300元"></textarea>
                             </div>
                              <div class="mb-4">
@@ -2029,6 +2039,104 @@
                     }
                 }
             });
+
+            // --- Custom Print Roster Logic ---
+            let pageCounter = 0;
+            
+            function addNewPrintPage(numbers = '') {
+                pageCounter++;
+                const pageDiv = document.createElement('div');
+                pageDiv.id = `print-page-row-${pageCounter}`;
+                pageDiv.className = 'flex items-center gap-2';
+                pageDiv.innerHTML = `
+                    <label for="page-input-${pageCounter}" class="block text-sm font-medium text-gray-700 whitespace-nowrap">第 ${pageCounter} 頁:</label>
+                    <input type="text" id="page-input-${pageCounter}" value="${numbers}" class="page-numbers-input mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="輸入住戶序號，以逗號分隔 (例如: 1,3,5)">
+                    <button data-page-id="${pageCounter}" class="remove-print-page-btn bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 text-sm">&times;</button>
+                `;
+                customPrintPagesContainer.appendChild(pageDiv);
+
+                pageDiv.querySelector('.remove-print-page-btn').addEventListener('click', (e) => {
+                    const idToRemove = e.target.dataset.pageId;
+                    document.getElementById(`print-page-row-${idToRemove}`).remove();
+                    // Re-number labels
+                    const remainingPages = customPrintPagesContainer.querySelectorAll('.flex');
+                    remainingPages.forEach((page, index) => {
+                       page.querySelector('label').textContent = `第 ${index + 1} 頁:`;
+                    });
+                     pageCounter = remainingPages.length;
+                });
+            }
+
+            customPrintRosterBtn.addEventListener('click', () => {
+                customPrintPagesContainer.innerHTML = '';
+                pageCounter = 0;
+                addNewPrintPage(); // Add the first page by default
+                customPrintModal.classList.remove('hidden');
+            });
+
+            cancelCustomPrintBtn.addEventListener('click', () => {
+                customPrintModal.classList.add('hidden');
+            });
+            
+            addPrintPageBtn.addEventListener('click', () => addNewPrintPage());
+
+            generateCustomRosterBtn.addEventListener('click', () => {
+                const inputs = customPrintPagesContainer.querySelectorAll('.page-numbers-input');
+                const pagesOfResidents = [];
+                let allNumbers = new Set();
+                let hasError = false;
+
+                inputs.forEach((input, index) => {
+                    if (hasError) return;
+                    const numbersStr = input.value.trim();
+                    if (!numbersStr) {
+                        showCustomAlert(`第 ${index + 1} 頁是空的，請填寫序號或移除此頁。`);
+                        hasError = true;
+                        return;
+                    }
+
+                    const numbers = numbersStr.split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
+                    
+                    if (numbers.length === 0 || numbers.length > 10) {
+                         showCustomAlert(`第 ${index + 1} 頁的住戶数量必須在 1 到 10 之間。`);
+                         hasError = true;
+                         return;
+                    }
+
+                    let invalidNumbers = [];
+                    let pageResidents = [];
+                    numbers.forEach(num => {
+                        if (num < 1 || num > allResidentsForSelectedEvent.length) {
+                            invalidNumbers.push(num);
+                        } else {
+                            if (allNumbers.has(num)) {
+                                showCustomAlert(`序號 ${num} 在多個頁面中重複出現。`);
+                                hasError = true;
+                            }
+                            allNumbers.add(num);
+                            pageResidents.push(allResidentsForSelectedEvent[num - 1]);
+                        }
+                    });
+
+                    if (invalidNumbers.length > 0) {
+                        showCustomAlert(`第 ${index + 1} 頁包含無效的序號: ${invalidNumbers.join(', ')}。 (有效範圍: 1-${allResidentsForSelectedEvent.length})`);
+                        hasError = true;
+                        return;
+                    }
+                    if (hasError) return;
+                    pagesOfResidents.push(pageResidents);
+                });
+
+                if (hasError) return;
+                
+                customPrintModal.classList.add('hidden');
+                showLoader();
+                
+                // We need to create pages from this custom list of residents
+                let customPrintList = [].concat.apply([], pagesOfResidents);
+                generateAndPrintRoster(customPrintList, 10, hideLoader, pagesOfResidents);
+            });
+
         }
 
         function initializeAppPublic(eventId) {
