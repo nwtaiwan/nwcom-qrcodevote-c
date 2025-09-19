@@ -38,7 +38,7 @@
             }
             
             /* Hide non-printable containers */
-            #app, #public-dashboard-view, #create-event-modal, #resident-modal, #share-modal, #custom-modal, #loader {
+            #app, #public-dashboard-view, #create-event-modal, #resident-modal, #share-modal, #custom-modal, #loader, #custom-print-modal {
                 display: none !important;
             }
             
@@ -1483,7 +1483,7 @@
             }
             
             // --- Reset, Delete, and Print ---
-            function generateAndPrintRoster(residentsPerPage, onComplete) {
+            function generateAndPrintRoster(residentsToPrint, residentsPerPage, onComplete) {
                 const printArea = document.getElementById('print-area');
                 const communityName = document.getElementById('community-name-display').textContent;
                 const eventName = document.getElementById('event-title-display').textContent;
@@ -1510,7 +1510,7 @@
 
                 let printContent = '';
                 
-                if (allResidentsForSelectedEvent.length === 0) {
+                if (residentsToPrint.length === 0) {
                     showCustomAlert('沒有住戶資料可列印。');
                     if(onComplete) onComplete();
                     return;
@@ -1548,13 +1548,13 @@
                 }
 
 
-                const numPages = Math.ceil(allResidentsForSelectedEvent.length / residentsPerPage);
+                const numPages = Math.ceil(residentsToPrint.length / residentsPerPage);
                 
 
                 for (let i = 0; i < numPages; i++) {
                     const start = i * residentsPerPage;
                     const end = start + residentsPerPage;
-                    const pageResidents = allResidentsForSelectedEvent.slice(start, end);
+                    const pageResidents = residentsToPrint.slice(start, end);
 
                     printContent += `<div class="print-page">`;
                     // Header
@@ -1588,9 +1588,10 @@
 
                     pageResidents.forEach((resident, index) => {
                         const residentId = resident.id;
+                        const originalIndex = allResidentsForSelectedEvent.findIndex(r => r.id === residentId) + 1;
                         printContent += `
                             <tr>
-                                <td>${start + index + 1}</td>
+                                <td>${originalIndex}</td>
                                 <td><div id="print-qr-${residentId}" style="width: 50px; height: 50px; margin: auto;"></div></td>
                                 <td>${resident.unit || ''}</td>
                                 <td style="word-break: break-all;">${resident.name || ''}</td>
@@ -1620,7 +1621,7 @@
                         for(let j=0; j < (residentsPerPage - pageResidents.length); j++){
                             printContent += `
                             <tr>
-                                <td>${start + pageResidents.length + j + 1}</td>
+                                <td></td>
                                 <td></td><td></td><td></td><td></td>
                                 <td></td><td></td><td></td><td></td>
                                 <td></td>
@@ -1697,8 +1698,8 @@
                 printArea.innerHTML = printContent;
                 
                 // Render QR Codes after they are in the DOM
-                for (let i = 0; i < allResidentsForSelectedEvent.length; i++) {
-                    const resident = allResidentsForSelectedEvent[i];
+                for (let i = 0; i < residentsToPrint.length; i++) {
+                    const resident = residentsToPrint[i];
                     const qrElement = document.getElementById(`print-qr-${resident.id}`);
                     if (qrElement) {
                         const qrValue = resident.qrcodeValue || resident.id;
@@ -1734,11 +1735,11 @@
             
             document.getElementById('print-roster-sequential-btn').addEventListener('click', () => {
                 showLoader();
-                generateAndPrintRoster(currentResidentsPerPage || 10, hideLoader);
+                generateAndPrintRoster(allResidentsForSelectedEvent, currentResidentsPerPage || 10, hideLoader);
             });
             document.getElementById('print-roster-individual-btn').addEventListener('click', () => {
                 showLoader();
-                generateAndPrintRoster(1, hideLoader);
+                generateAndPrintRoster(allResidentsForSelectedEvent, 1, hideLoader);
             });
 
             document.getElementById('reset-checkin-btn').addEventListener('click', async () => {
