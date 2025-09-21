@@ -16,6 +16,11 @@
             color: #dc2626; /* red-600 */
             background-color: #fee2e2; /* red-100 */
         }
+        .dashboard-tab-button.active {
+            border-color: #1d4ed8; /* blue-700 */
+            color: #1d4ed8; /* blue-700 */
+            background-color: #eff6ff; /* blue-50 */
+        }
         #reader {
             border: 2px dashed #cbd5e1;
             border-radius: 0.5rem;
@@ -38,7 +43,7 @@
             }
             
             /* Hide non-printable containers */
-            #app, #public-dashboard-view, #create-event-modal, #resident-modal, #share-modal, #custom-modal, #loader, #custom-print-modal {
+            #app, #public-dashboard-view, #create-event-modal, #resident-modal, #share-modal, #custom-modal, #loader, #custom-print-modal, #create-poll-modal, #live-voting-modal, #poll-results-modal {
                 display: none !important;
             }
             
@@ -205,6 +210,7 @@
                     <button id="tab-dashboard" class="tab-button active shrink-0 px-4 py-2 text-sm font-medium text-gray-500 rounded-t-lg border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">儀表板</button>
                     <button id="tab-residents" class="tab-button shrink-0 px-4 py-2 text-sm font-medium text-gray-500 rounded-t-lg border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">住戶管理</button>
                     <button id="tab-scanner" class="tab-button shrink-0 px-4 py-2 text-sm font-medium text-gray-500 rounded-t-lg border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">掃碼報到</button>
+                    <button id="tab-voting" class="tab-button shrink-0 px-4 py-2 text-sm font-medium text-gray-500 rounded-t-lg border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">投票系統</button>
                     <button id="tab-settings" class="tab-button shrink-0 px-4 py-2 text-sm font-medium text-gray-500 rounded-t-lg border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">系統設定</button>
                 </nav>
             </div>
@@ -219,54 +225,77 @@
                             分享
                         </button>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
-                             <div>
-                                 <p class="text-sm font-medium text-gray-500">總住戶數</p>
-                                 <p id="total-residents" class="text-3xl font-bold text-red-600">0</p>
-                             </div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-500">已報到人數</p>
-                                <p id="checked-in-count" class="text-3xl font-bold text-green-600">0</p>
+
+                    <!-- Dashboard Sub-Tabs -->
+                    <div class="mb-4 border-b border-gray-200">
+                        <nav class="flex -mb-px space-x-6" aria-label="Dashboard Tabs">
+                            <button id="dashboard-tab-checkin" class="dashboard-tab-button active shrink-0 pb-2 px-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">報到資訊</button>
+                            <button id="dashboard-tab-voting" class="dashboard-tab-button shrink-0 pb-2 px-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300">投票資訊</button>
+                        </nav>
+                    </div>
+
+                    <!-- Dashboard Check-in Info -->
+                    <div id="dashboard-checkin-info">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                                 <div>
+                                     <p class="text-sm font-medium text-gray-500">總住戶數</p>
+                                     <p id="total-residents" class="text-3xl font-bold text-red-600">0</p>
+                                 </div>
                             </div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-500">人數報到率 <span id="person-ratio-target" class="text-xs"></span></p>
-                                <p id="check-in-rate" class="text-3xl font-bold text-orange-600">0%</p>
+                            <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">已報到人數</p>
+                                    <p id="checked-in-count" class="text-3xl font-bold text-green-600">0</p>
+                                </div>
                             </div>
-                            <span id="quorum-person-message" class="hidden text-green-600 font-bold text-lg">已達法定開會人數</span>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-500">區分權報到率 <span id="ownership-ratio-target" class="text-xs"></span></p>
-                                <p id="ownership-check-in-rate" class="text-3xl font-bold text-blue-600">0%</p>
+                            <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">人數報到率 <span id="person-ratio-target" class="text-xs"></span></p>
+                                    <p id="check-in-rate" class="text-3xl font-bold text-orange-600">0%</p>
+                                </div>
+                                <span id="quorum-person-message" class="hidden text-green-600 font-bold text-lg">已達法定開會人數</span>
                             </div>
-                            <span id="quorum-message" class="hidden text-green-600 font-bold text-lg">已達法定開會區分權比例</span>
-                        </div>
-                        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-md">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-lg font-semibold">最近報到紀錄</h3>
+                            <div class="bg-white p-6 rounded-xl shadow-md flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">區分權報到率 <span id="ownership-ratio-target" class="text-xs"></span></p>
+                                    <p id="ownership-check-in-rate" class="text-3xl font-bold text-blue-600">0%</p>
+                                </div>
+                                <span id="quorum-message" class="hidden text-green-600 font-bold text-lg">已達法定開會區分權比例</span>
                             </div>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">戶號</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">報到日期時間</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">報到方式</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作員</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="recent-check-ins-list" class="bg-white divide-y divide-gray-200">
-                                        <tr><td colspan="4" class="p-4 text-center text-gray-500">尚無報到紀錄</td></tr>
-                                    </tbody>
-                                </table>
+                            <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-md">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold">最近報到紀錄</h3>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">戶號</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">報到日期時間</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">報到方式</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作員</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="recent-check-ins-list" class="bg-white divide-y divide-gray-200">
+                                            <tr><td colspan="4" class="p-4 text-center text-gray-500">尚無報到紀錄</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Dashboard Voting Info -->
+                    <div id="dashboard-voting-info" class="hidden">
+                         <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h3 class="text-lg font-semibold mb-4">投票議題總覽</h3>
+                            <div id="dashboard-polls-summary-list" class="space-y-4">
+                                <!-- Polls summary will be injected here -->
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Resident Management -->
@@ -339,6 +368,19 @@
                              </ul>
                          </div>
                      </div>
+                </div>
+
+                <!-- Voting -->
+                <div id="voting-content" class="hidden">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                            <h3 class="text-lg font-semibold">投票議題列表</h3>
+                            <button id="add-poll-modal-btn" class="bg-cyan-500 text-white px-4 py-2 rounded-md hover:bg-cyan-600 text-sm font-semibold">新增投票議題</button>
+                        </div>
+                        <div id="polls-list" class="space-y-4">
+                            <!-- Poll cards will be dynamically inserted here -->
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Settings -->
@@ -577,6 +619,137 @@
         </div>
     </div>
 
+    <!-- Create/Edit Poll Modal -->
+    <div id="create-poll-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <h3 id="poll-modal-title" class="text-lg leading-6 font-medium text-gray-900 mb-4">新增投票議題</h3>
+            <form id="create-poll-form" class="space-y-4">
+                <input type="hidden" id="poll-id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="poll-type" class="block text-sm font-medium text-gray-700">投票類型</label>
+                        <select id="poll-type" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                            <option>議題</option>
+                            <option>臨時動議</option>
+                            <option>選舉</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="poll-proposer" class="block text-sm font-medium text-gray-700">提案人</label>
+                        <input type="text" id="poll-proposer" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="例如：A-1201 王大明">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="poll-title" class="block text-sm font-medium text-gray-700">投票主旨</label>
+                    <input type="text" id="poll-title" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                </div>
+                 <div>
+                    <label for="poll-description" class="block text-sm font-medium text-gray-700">投票說明</label>
+                    <textarea id="poll-description" rows="3" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">投票項目</label>
+                    <div id="poll-options-container" class="mt-2 space-y-2">
+                        <!-- Options will be added here by JS -->
+                    </div>
+                    <button type="button" id="add-poll-option-btn" class="mt-2 text-sm text-blue-600 hover:text-blue-800">+ 新增選項</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">投票項目票數</label>
+                        <div class="mt-2 flex gap-4">
+                            <label class="inline-flex items-center"><input type="radio" name="vote-multiplicity" value="single" class="text-red-600" checked> <span class="ml-2">單選</span></label>
+                            <label class="inline-flex items-center"><input type="radio" name="vote-multiplicity" value="multiple" class="text-red-600"> <span class="ml-2">複選</span></label>
+                        </div>
+                    </div>
+                     <div>
+                         <label class="block text-sm font-medium text-gray-700">計票方式</label>
+                         <div class="mt-2 flex items-center">
+                             <input id="is-ownership-based-checkbox" type="checkbox" class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
+                             <label for="is-ownership-based-checkbox" class="ml-2 block text-sm text-gray-900">依「區分所有權比例」計票</label>
+                         </div>
+                    </div>
+                </div>
+
+                <div class="items-center pt-3 border-t flex flex-row-reverse">
+                    <button type="submit" id="save-poll-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">儲存議題</button>
+                    <button type="button" id="cancel-poll-modal-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Live Voting Modal -->
+    <div id="live-voting-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="live-voting-title" class="text-xl leading-6 font-bold text-gray-900"></h3>
+                <button type="button" id="close-live-voting-btn" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+            <div id="live-voting-stats" class="mb-4 grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <p class="text-sm text-gray-500">已報到</p>
+                    <p id="live-voting-checked-in" class="text-2xl font-bold">0</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">已投票</p>
+                    <p id="live-voting-voted" class="text-2xl font-bold text-green-600">0</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">投票率</p>
+                    <p id="live-voting-rate" class="text-2xl font-bold text-blue-600">0%</p>
+                </div>
+            </div>
+            <div class="overflow-auto max-h-[65vh]">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">戶號</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">投票操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="live-voting-resident-list" class="bg-white divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Poll Results Modal -->
+    <div id="poll-results-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+         <div class="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
+              <div class="flex justify-between items-center mb-4">
+                  <h3 id="poll-results-title" class="text-xl leading-6 font-bold text-gray-900"></h3>
+                  <div>
+                    <button id="print-poll-results-btn" class="bg-indigo-500 text-white px-3 py-1 rounded-md hover:bg-indigo-600 text-sm font-semibold mr-2">列印結果</button>
+                    <button type="button" id="close-poll-results-btn" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+                  </div>
+              </div>
+              <div id="poll-results-summary" class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- Summary cards will be injected here -->
+              </div>
+              <h4 class="text-md font-semibold mt-6 mb-2">詳細投票紀錄</h4>
+              <div class="overflow-auto max-h-[50vh]">
+                  <table class="min-w-full divide-y divide-gray-200">
+                      <thead class="bg-gray-50 sticky top-0">
+                          <tr>
+                              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">戶號</th>
+                              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">區分權(%)</th>
+                              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">投票選項</th>
+                              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">投票時間</th>
+                          </tr>
+                      </thead>
+                      <tbody id="poll-results-details-list" class="bg-white divide-y divide-gray-200"></tbody>
+                  </table>
+              </div>
+         </div>
+    </div>
+
+
     <!-- Loading Spinner -->
     <div id="loader" class="fixed inset-0 bg-gray-900 bg-opacity-60 h-full w-full hidden z-50 flex items-center justify-center">
         <div class="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-white"></div>
@@ -618,9 +791,12 @@
         let currentUser = { uid: null, name: null, role: null };
         let selectedEventId = null;
         let allResidentsForSelectedEvent = [];
+        let allPollsForSelectedEvent = [];
         let unsubscribeResidents = () => {};
         let unsubscribeSettings = () => {};
         let unsubscribeUsers = () => {};
+        let unsubscribePolls = () => {};
+        let unsubscribeVotes = {};
         let unsubscribeSession = () => {};
         let currentQuorumRatio = 0;
         let currentPersonQuorumRatio = 0;
@@ -633,6 +809,10 @@
         const residentDocPath = (eventId, residentId) => ["events", eventId, "residents", residentId];
         const usersCollectionPath = () => ["users"];
         const userDocPath = (userId) => ["users", userId];
+        const pollsCollectionPath = (eventId) => ["events", eventId, "polls"];
+        const pollDocPath = (eventId, pollId) => ["events", eventId, "polls", pollId];
+        const votesCollectionPath = (eventId, pollId) => ["events", eventId, "polls", pollId, "votes"];
+        const voteDocPath = (eventId, pollId, residentId) => ["events", eventId, "polls", pollId, "votes", residentId];
 
         // This listener ensures that the rest of the code runs only after the HTML document is fully loaded.
         window.addEventListener('DOMContentLoaded', () => {
@@ -686,6 +866,22 @@
             const generateCustomRosterBtn = document.getElementById('generate-custom-roster-btn');
             const cancelCustomPrintBtn = document.getElementById('cancel-custom-print-btn');
             const customPrintRosterBtn = document.getElementById('custom-print-roster-btn');
+            
+            // Polls UI Elements
+            const addPollModalBtn = document.getElementById('add-poll-modal-btn');
+            const createPollModal = document.getElementById('create-poll-modal');
+            const pollModalTitle = document.getElementById('poll-modal-title');
+            const cancelPollModalBtn = document.getElementById('cancel-poll-modal-btn');
+            const createPollForm = document.getElementById('create-poll-form');
+            const pollIdInput = document.getElementById('poll-id');
+            const pollOptionsContainer = document.getElementById('poll-options-container');
+            const addPollOptionBtn = document.getElementById('add-poll-option-btn');
+            const liveVotingModal = document.getElementById('live-voting-modal');
+            const closeLiveVotingBtn = document.getElementById('close-live-voting-btn');
+            const pollResultsModal = document.getElementById('poll-results-modal');
+            const closePollResultsBtn = document.getElementById('close-poll-results-btn');
+            const pollsListDiv = document.getElementById('polls-list');
+
 
             appContainer.style.display = 'block';
 
@@ -814,6 +1010,9 @@
                 unsubscribeResidents();
                 unsubscribeSettings();
                 unsubscribeUsers();
+                unsubscribePolls();
+                Object.values(unsubscribeVotes).forEach(unsub => unsub());
+                unsubscribeVotes = {};
                 unsubscribeSession();
 
                 if (user && user.email) {
@@ -869,12 +1068,14 @@
                 const tabDashboard = document.getElementById('tab-dashboard');
                 const tabResidents = document.getElementById('tab-residents');
                 const tabScanner = document.getElementById('tab-scanner');
+                const tabVoting = document.getElementById('tab-voting');
                 const tabSettings = document.getElementById('tab-settings');
                 
                 // Set all to a baseline (Staff)
                 createEventBtn.style.display = 'none';
                 userManagementBtn.style.display = 'none';
                 tabResidents.style.display = 'none';
+                tabVoting.style.display = 'none';
                 tabSettings.style.display = 'none';
                 
                 // Dashboard and Scanner are always visible for logged-in users
@@ -890,6 +1091,7 @@
                 if (role === 'senior_manager') {
                     createEventBtn.style.display = 'block';
                     tabResidents.style.display = 'block';
+                    tabVoting.style.display = 'block';
                     tabSettings.style.display = 'block';
                 }
 
@@ -898,6 +1100,7 @@
                     createEventBtn.style.display = 'block';
                     userManagementBtn.style.display = 'block';
                     tabResidents.style.display = 'block';
+                    tabVoting.style.display = 'block';
                     tabSettings.style.display = 'block';
                 }
             }
@@ -1087,12 +1290,16 @@
                 unsubscribeResidents();
                 unsubscribeResidents = listenToResidents(eventId);
                 
+                unsubscribePolls();
+                unsubscribePolls = listenToPolls(eventId);
+                
                 switchTab('dashboard');
+                switchDashboardTab('checkin');
             }
 
             // --- Tabs Navigation ---
-            const tabs = { dashboard: document.getElementById('tab-dashboard'), residents: document.getElementById('tab-residents'), scanner: document.getElementById('tab-scanner'), settings: document.getElementById('tab-settings') };
-            const contents = { dashboard: document.getElementById('dashboard-content'), residents: document.getElementById('residents-content'), scanner: document.getElementById('scanner-content'), settings: document.getElementById('settings-content')};
+            const tabs = { dashboard: document.getElementById('tab-dashboard'), residents: document.getElementById('tab-residents'), scanner: document.getElementById('tab-scanner'), voting: document.getElementById('tab-voting'), settings: document.getElementById('tab-settings') };
+            const contents = { dashboard: document.getElementById('dashboard-content'), residents: document.getElementById('residents-content'), scanner: document.getElementById('scanner-content'), voting: document.getElementById('voting-content'), settings: document.getElementById('settings-content')};
             
             Object.keys(tabs).forEach(key => {
                 tabs[key].addEventListener('click', () => switchTab(key));
@@ -1114,6 +1321,21 @@
                         scanGunInput.focus();
                     }, 100); 
                 }
+            }
+
+            // Dashboard Sub-Tabs Logic
+            const dashboardTabs = { checkin: document.getElementById('dashboard-tab-checkin'), voting: document.getElementById('dashboard-tab-voting') };
+            const dashboardContents = { checkin: document.getElementById('dashboard-checkin-info'), voting: document.getElementById('dashboard-voting-info') };
+
+            Object.keys(dashboardTabs).forEach(key => {
+                dashboardTabs[key].addEventListener('click', () => switchDashboardTab(key));
+            });
+
+            function switchDashboardTab(tabKey) {
+                Object.keys(dashboardTabs).forEach(key => {
+                    dashboardTabs[key].classList.toggle('active', key === tabKey);
+                    dashboardContents[key].classList.toggle('hidden', key !== tabKey);
+                });
             }
             
             // --- Settings Management (Event Specific) ---
@@ -1492,6 +1714,233 @@
                 }
             }
             
+            // --- Polls & Voting Logic ---
+
+            function addPollOptionInput(value = '') {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'flex items-center gap-2';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = value;
+                input.className = 'poll-option-input mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm';
+                input.placeholder = `選項 ${pollOptionsContainer.children.length + 1}`;
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.textContent = '移除';
+                removeBtn.className = 'remove-option-btn text-xs bg-gray-200 px-2 py-1 rounded';
+                
+                optionDiv.appendChild(input);
+                optionDiv.appendChild(removeBtn);
+                pollOptionsContainer.appendChild(optionDiv);
+            }
+
+            function openPollModalForCreate() {
+                createPollForm.reset();
+                pollIdInput.value = '';
+                pollModalTitle.textContent = '新增投票議題';
+                document.getElementById('save-poll-btn').textContent = '儲存議題';
+                pollOptionsContainer.innerHTML = '';
+                addPollOptionInput('同意');
+                addPollOptionInput('不同意');
+                addPollOptionInput('廢票');
+                createPollModal.classList.remove('hidden');
+            }
+
+            async function openPollModalForEdit(pollId) {
+                const pollRef = doc(db, ...pollDocPath(selectedEventId, pollId));
+                const pollSnap = await getDoc(pollRef);
+                if (!pollSnap.exists()) {
+                    showCustomAlert('找不到指定的投票議題。');
+                    return;
+                }
+                const poll = pollSnap.data();
+
+                createPollForm.reset();
+                pollIdInput.value = pollId;
+                pollModalTitle.textContent = '編輯投票議題';
+                document.getElementById('save-poll-btn').textContent = '更新議題';
+                
+                document.getElementById('poll-type').value = poll.type || '議題';
+                document.getElementById('poll-proposer').value = poll.proposer || '';
+                document.getElementById('poll-title').value = poll.title || '';
+                document.getElementById('poll-description').value = poll.description || '';
+                
+                document.querySelector(`input[name="vote-multiplicity"][value="${poll.voteMultiplicity || 'single'}"]`).checked = true;
+                document.getElementById('is-ownership-based-checkbox').checked = poll.isOwnershipBased || false;
+
+                pollOptionsContainer.innerHTML = '';
+                poll.options.forEach(option => addPollOptionInput(option));
+
+                createPollModal.classList.remove('hidden');
+            }
+
+            addPollModalBtn.addEventListener('click', openPollModalForCreate);
+            cancelPollModalBtn.addEventListener('click', () => createPollModal.classList.add('hidden'));
+            addPollOptionBtn.addEventListener('click', () => addPollOptionInput());
+            pollOptionsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-option-btn')) {
+                    e.target.parentElement.remove();
+                }
+            });
+
+            createPollForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const pollId = pollIdInput.value;
+                const title = document.getElementById('poll-title').value.trim();
+                const options = Array.from(document.querySelectorAll('.poll-option-input'))
+                                     .map(input => input.value.trim())
+                                     .filter(option => option !== '');
+                
+                if (!title || options.length < 2) {
+                    showCustomAlert('請填寫議題主旨，並提供至少兩個投票選項。');
+                    return;
+                }
+                
+                const pollData = {
+                    type: document.getElementById('poll-type').value,
+                    proposer: document.getElementById('poll-proposer').value.trim(),
+                    title: title,
+                    description: document.getElementById('poll-description').value.trim(),
+                    options: options,
+                    voteMultiplicity: document.querySelector('input[name="vote-multiplicity"]:checked').value,
+                    isOwnershipBased: document.getElementById('is-ownership-based-checkbox').checked,
+                };
+                
+                showLoader();
+                try {
+                    if (pollId) {
+                        // Update existing poll
+                        const pollRef = doc(db, ...pollDocPath(selectedEventId, pollId));
+                        await updateDoc(pollRef, pollData);
+                    } else {
+                        // Create new poll
+                        pollData.status = 'pending';
+                        pollData.createdAt = serverTimestamp();
+                        await addDoc(collection(db, ...pollsCollectionPath(selectedEventId)), pollData);
+                    }
+                    createPollModal.classList.add('hidden');
+                } catch (error) {
+                    console.error("Error saving poll:", error);
+                    showCustomAlert('儲存投票議題失敗。');
+                } finally {
+                    hideLoader();
+                }
+            });
+
+            function listenToPolls(eventId) {
+                const q = query(collection(db, ...pollsCollectionPath(eventId)));
+
+                return onSnapshot(q, (snapshot) => {
+                    allPollsForSelectedEvent = [];
+                    snapshot.forEach(doc => {
+                        allPollsForSelectedEvent.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    renderPollsList();
+                    renderDashboardVotingInfo();
+                    
+                    // Set up listeners for vote counts on each poll
+                    allPollsForSelectedEvent.forEach(poll => {
+                        if (unsubscribeVotes[poll.id]) unsubscribeVotes[poll.id](); // Unsubscribe from old listener if it exists
+                        
+                        const votesQuery = query(collection(db, ...votesCollectionPath(eventId, poll.id)));
+                        unsubscribeVotes[poll.id] = onSnapshot(votesQuery, (votesSnapshot) => {
+                            const voteCount = votesSnapshot.size;
+                            // Update count on the Voting tab
+                            const voteCountElement = document.getElementById(`poll-vote-count-${poll.id}`);
+                            if (voteCountElement) voteCountElement.textContent = voteCount;
+                            // Update count on the Dashboard tab
+                            const dashboardVoteCountElement = document.getElementById(`dashboard-poll-vote-count-${poll.id}`);
+                            if (dashboardVoteCountElement) dashboardVoteCountElement.textContent = voteCount;
+                        });
+                    });
+                });
+            }
+            
+            function renderPollsList() {
+                pollsListDiv.innerHTML = '';
+                if (allPollsForSelectedEvent.length === 0) {
+                    pollsListDiv.innerHTML = `<p class="text-gray-500 text-center">尚未建立任何投票議題。</p>`;
+                    return;
+                }
+
+                allPollsForSelectedEvent.forEach(poll => {
+                    const card = document.createElement('div');
+                    card.className = 'p-4 border rounded-lg shadow-sm flex justify-between items-center';
+
+                    const statusColors = {
+                        pending: { text: '準備中', bg: 'bg-gray-100', text_color: 'text-gray-800' },
+                        active: { text: '進行中', bg: 'bg-green-100', text_color: 'text-green-800' },
+                        closed: { text: '已結束', bg: 'bg-red-100', text_color: 'text-red-800' }
+                    };
+                    const statusInfo = statusColors[poll.status] || statusColors.pending;
+
+                    card.innerHTML = `
+                        <div>
+                            <h4 class="font-bold text-lg">${poll.title}</h4>
+                            <div class="flex items-center gap-2 text-sm mt-1">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full ${statusInfo.bg} ${statusInfo.text_color}">${statusInfo.text}</span>
+                                <span class="text-gray-500">${poll.isOwnershipBased ? '依區分權' : '依人數'}</span>
+                                <span class="text-gray-500">票數: <span id="poll-vote-count-${poll.id}">0</span></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${poll.status === 'pending' ? `<button data-id="${poll.id}" class="edit-poll-btn bg-gray-500 text-white px-3 py-1 rounded-md text-sm">編輯</button>` : ''}
+                            ${poll.status === 'pending' ? `<button data-id="${poll.id}" class="start-poll-btn bg-green-500 text-white px-3 py-1 rounded-md text-sm">開始投票</button>` : ''}
+                            ${poll.status === 'active' ? `<button data-id="${poll.id}" data-title="${poll.title}" class="live-vote-btn bg-blue-500 text-white px-3 py-1 rounded-md text-sm">進入投票</button>` : ''}
+                            ${poll.status === 'active' ? `<button data-id="${poll.id}" class="end-poll-btn bg-yellow-500 text-white px-3 py-1 rounded-md text-sm">結束投票</button>` : ''}
+                            ${poll.status === 'closed' ? `<button data-id="${poll.id}" data-title="${poll.title}" class="view-results-btn bg-purple-500 text-white px-3 py-1 rounded-md text-sm">查看結果</button>` : ''}
+                            <button data-id="${poll.id}" class="delete-poll-btn text-red-500 hover:text-red-700 text-sm">刪除</button>
+                        </div>
+                    `;
+                    pollsListDiv.appendChild(card);
+                });
+            }
+
+            function renderDashboardVotingInfo() {
+                const container = document.getElementById('dashboard-polls-summary-list');
+                container.innerHTML = '';
+                if (allPollsForSelectedEvent.length === 0) {
+                    container.innerHTML = `<p class="text-gray-500 text-center">此活動尚無投票議題。</p>`;
+                    return;
+                }
+
+                allPollsForSelectedEvent.forEach(poll => {
+                    const statusColors = {
+                        pending: { text: '準備中', border: 'border-gray-500' },
+                        active: { text: '進行中', border: 'border-green-500' },
+                        closed: { text: '已結束', border: 'border-red-500' }
+                    };
+                    const statusInfo = statusColors[poll.status] || statusColors.pending;
+                    const item = document.createElement('div');
+                    item.className = `p-3 border-l-4 ${statusInfo.border} bg-gray-50 rounded-r-lg flex justify-between items-center`;
+                    item.innerHTML = `
+                        <div>
+                            <p class="font-semibold text-gray-800">${poll.title}</p>
+                            <p class="text-sm text-gray-500">${statusInfo.text}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xl font-bold text-gray-900" id="dashboard-poll-vote-count-${poll.id}">0</p>
+                            <p class="text-xs text-gray-500">總票數</p>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            }
+
+            pollsListDiv.addEventListener('click', e => {
+                const target = e.target;
+                const pollId = target.dataset.id;
+                if (!pollId) return;
+
+                if (target.classList.contains('edit-poll-btn')) {
+                    openPollModalForEdit(pollId);
+                }
+                // ... other button handlers ...
+            });
+
+
             // --- Reset, Delete, and Print ---
             function generateAndPrintRoster(residentsToPrint, residentsPerPage, onComplete) {
                 const printArea = document.getElementById('print-area');
